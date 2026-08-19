@@ -93,8 +93,45 @@ def main():
     for k in fam:
         fam[k].sort(key=lambda h: E._tag_key(tags[h]))
 
+    # 역할군 자료 — 첫 화면 차례이자 «이전·다음» 차례다
+    roles = {}
+    rp = os.path.join(DATA, "roles.js")
+    if os.path.exists(rp):
+        t = read(rp)
+        roles = json.loads(t[t.index("=") + 1:].rstrip().rstrip(";"))
+    ORDER = ["전사", "투사", "근접 암살자", "원거리 암살자", "치유사", "지원가"]
+
+    def top(slug):
+        """같은 번호를 나눠 쓰는 무리의 «대표» (D.Va 는 메카, 바이킹은 올라프).
+
+        한국어 이름으로 이으면 조종사·발레이그가 먼저 걸리는 수가 있어서,
+        번호가 가장 앞선 것을 대표로 삼는다."""
+        f = fam.get(tags.get(slug, "").split("-")[0])
+        return f[0] if f else slug
+
+    grp = {}
+    for slug, m in roles.items():
+        if slug in tags:
+            grp.setdefault(m.get("role") or "그 밖", []).append((m["ko"], slug))
+    for k in grp:
+        grp[k].sort()
+    roles_seq = []                       # 화면에 보이는 차례 그대로
+    for role in ORDER + [k for k in sorted(grp) if k not in ORDER]:
+        for ko, sl in grp.get(role, []):
+            h2 = top(sl)
+            if h2 not in roles_seq:
+                roles_seq.append(h2)
+
     order = sorted(by, key=lambda h: E._tag_key(tags[h]))
-    pos = {h: k for k, h in enumerate(order)}
+    # «이전·다음» 은 역할군 차례를 따른다. 변신 형태는 제 부모 자리로 친다.
+    seq_at = {h: k for k, h in enumerate(roles_seq)}
+
+    def step_of(hero):
+        k = seq_at.get(top(hero))
+        if k is None:
+            return None, None
+        return (roles_seq[k - 1],
+                roles_seq[(k + 1) % len(roles_seq)])
     cards = []
     for hero in order:
         rs = by[hero]
@@ -112,14 +149,14 @@ def main():
                 "animKo": True}
         body = E.BODY
         sibs = fam.get(tag.split("-")[0], [])
-        # 끝에서 끊기지 않게 고리로 돈다 (첫 영웅의 «이전» 은 마지막 영웅)
-        k = pos[hero]
-        prv, nxt = order[k - 1], order[(k + 1) % len(order)]
+        # 이전·다음은 첫 화면과 같은 차례(역할군 → 가나다)로 고리처럼 돈다
+        prv, nxt = step_of(hero)
         nav = ("<a class=home href='../index.html'>← 영웅 목록</a>"
                "<span class=sep>|</span>")
         for lab, h2 in (("‹ 이전", prv), ("다음 ›", nxt)):
-            nav += ("<a class=step href='%s_%s.html' title='%s'>%s</a>"
-                    % (tags[h2], h2, E.html_mod.escape(ko_of[h2]), lab))
+            if h2:
+                nav += ("<a class=step href='%s_%s.html' title='%s'>%s</a>"
+                        % (tags[h2], h2, E.html_mod.escape(ko_of[h2]), lab))
         if len(sibs) > 1:
             nav += "<span class=sep>|</span>"
             for h2 in sibs:
@@ -145,19 +182,6 @@ def main():
     # ── 영웅 목록: 역할군별 아이콘 판 ────────────────────────────────
     # 게임의 영웅은 90명이고 변신 형태는 그 안에 딸린 것이라, 목록에는 90명만
     # 세우고 변신폼은 영웅 페이지의 상단 바에서 건너뛰게 둔다.
-    roles = {}
-    rp = os.path.join(DATA, "roles.js")
-    if os.path.exists(rp):
-        t = read(rp)
-        roles = json.loads(t[t.index("=") + 1:].rstrip().rstrip(";"))
-    ORDER = ["전사", "투사", "근접 암살자", "원거리 암살자", "치유사", "지원가"]
-    grp = {}
-    for slug, m in roles.items():
-        if slug not in tags:
-            continue
-        grp.setdefault(m.get("role") or "그 밖", []).append((m["ko"], slug))
-    for k in grp:
-        grp[k].sort()
     secs = ""
     total = 0
     for role in ORDER + [k for k in sorted(grp) if k not in ORDER]:
@@ -169,8 +193,8 @@ def main():
             "<a class=hero href='h/%s_%s.html' title='%s %s'>"
             "<img loading=lazy src='icons/%s.jpg' alt=''>"
             "<span>%s</span></a>"
-            % (tags[sl], sl, tags[sl], E.html_mod.escape(ko),
-               sl, E.html_mod.escape(ko))
+            % (tags[top(sl)], top(sl), tags[top(sl)],
+               E.html_mod.escape(ko), sl, E.html_mod.escape(ko))
             for ko, sl in lst)
         secs += ("<h2>%s<i>%d</i></h2><div class=grid>%s</div>"
                  % (E.html_mod.escape(role), len(lst), cards2))
