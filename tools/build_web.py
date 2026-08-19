@@ -31,7 +31,7 @@ DATA = os.path.join(OUT, "data")
 
 # 웹판 UI 는 «재생/멈춤» 만 남긴다 — 속도·표정 고르개는 감춘다 (요소를 지우면
 # 그것을 만지는 코드가 깨지므로 감추기만 한다)
-WEB_CSS = '\n#bar select{display:none!important}\n#nav{position:fixed;left:0;right:0;top:0;height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#0b0f16ee;border-bottom:1px solid #243044;z-index:5;overflow-x:auto;white-space:nowrap;scrollbar-width:none}\n#nav::-webkit-scrollbar{display:none}\n#nav a,#nav .step{color:#8b9bb4;text-decoration:none;font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid transparent;flex:none}\n#nav a:hover{color:#e6edf7;border-color:#4ea3ff}\n#nav a.home{color:#e6edf7;background:#131a24;border-color:#243044}\n#nav a.step{background:#131a24;border-color:#243044;color:#c3cfe2}\n#nav .step.off{opacity:.35}\n#nav a.on{background:#d43f3a;color:#fff;border-color:#d43f3a}\n#nav em{font-style:normal;color:#5b8dd6;font-family:Consolas,monospace;margin-right:5px}\n#nav a.on em{color:#ffd9d7}\n#nav .sep{color:#2c3a50;flex:none}\n#top{top:46px}\n#skins{left:auto;right:14px;top:46px;justify-content:flex-end;max-width:58%}\n#vars{left:auto;right:14px;top:88px;justify-content:flex-end;max-width:58%}\n#anims{position:fixed;left:50%;transform:translateX(-50%);right:auto;top:auto;bottom:62px;width:auto;max-width:calc(100% - 28px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:6px;overflow:visible;display:flex!important}\n#animFind{display:none}\n#animList{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:0;overflow:visible;flex:none}\n#anims .ahead{display:none}\n#anims .arow{border:1px solid var(--line);border-radius:14px;background:#131a24e6;padding:6px 12px;font-size:12px;display:inline-flex;backdrop-filter:blur(6px)}\n#anims .arow .dur{display:none}\n#bAnims{display:none!important}\n#anims .arow.on,#skins button.on,#vars button.on{background:#d43f3a!important;color:#fff!important;border-color:#d43f3a!important}\n@media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{left:8px;right:8px;top:64px;max-width:none;justify-content:flex-start}#vars{left:8px;right:8px;top:100px;max-width:none;justify-content:flex-start}#anims{left:8px;right:8px;bottom:58px;transform:none;max-width:none;max-height:none}}\n'
+WEB_CSS = '\n#bar select{display:none!important}\n#nav{position:fixed;left:0;right:0;top:0;height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#0b0f16ee;border-bottom:1px solid #243044;z-index:5;overflow-x:auto;white-space:nowrap;scrollbar-width:none}\n#nav::-webkit-scrollbar{display:none}\n#nav a,#nav .step{color:#8b9bb4;text-decoration:none;font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid transparent;flex:none}\n#nav a:hover{color:#e6edf7;border-color:#4ea3ff}\n#nav a.home{color:#e6edf7;background:#131a24;border-color:#243044}\n#nav a.step{background:#131a24;border-color:#243044;color:#c3cfe2}\n#nav .step.off{opacity:.35}\n#nav em{font-style:normal;color:#5b8dd6;font-family:Consolas,monospace;margin-right:5px}\n#nav .sep{color:#2c3a50;flex:none}\n#top{top:46px}\n#skins{left:auto;right:14px;top:46px;justify-content:flex-end;max-width:58%}\n#vars{left:auto;right:14px;top:88px;justify-content:flex-end;max-width:58%}\n#anims{position:fixed;left:50%;transform:translateX(-50%);right:auto;top:auto;bottom:62px;width:auto;max-width:calc(100% - 28px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:6px;overflow:visible;display:flex!important}\n#animFind{display:none}\n#animList{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:0;overflow:visible;flex:none}\n#anims .ahead{display:none}\n#anims .arow{border:1px solid var(--line);border-radius:14px;background:#131a24e6;padding:6px 12px;font-size:12px;display:inline-flex;backdrop-filter:blur(6px)}\n#anims .arow .dur{display:none}\n#bAnims{display:none!important}\n#anims .arow.on,#skins button.on,#vars button.on,#nav a.on{background:#1c2534!important;color:#ffe9b0!important;border-color:#f0c04a!important;box-shadow:0 0 0 1px #f0c04a66,0 0 12px #f0c04a55!important}\n#nav a.on em{color:#f0c04a!important}\n@media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{left:8px;right:8px;top:64px;max-width:none;justify-content:flex-start}#vars{left:8px;right:8px;top:100px;max-width:none;justify-content:flex-start}#anims{left:8px;right:8px;bottom:58px;transform:none;max-width:none;max-height:none}}\n'
 
 
 def read(p):
@@ -112,16 +112,14 @@ def main():
                 "animKo": True}
         body = E.BODY
         sibs = fam.get(tag.split("-")[0], [])
+        # 끝에서 끊기지 않게 고리로 돈다 (첫 영웅의 «이전» 은 마지막 영웅)
         k = pos[hero]
-        prv, nxt = order[k - 1] if k else None,             order[k + 1] if k + 1 < len(order) else None
+        prv, nxt = order[k - 1], order[(k + 1) % len(order)]
         nav = ("<a class=home href='../index.html'>← 영웅 목록</a>"
                "<span class=sep>|</span>")
-        nav += ("<a class=step href='%s_%s.html' title='%s'>‹ 이전</a>"
-                % (tags[prv], prv, E.html_mod.escape(ko_of[prv]))
-                if prv else "<span class='step off'>‹ 이전</span>")
-        nav += ("<a class=step href='%s_%s.html' title='%s'>다음 ›</a>"
-                % (tags[nxt], nxt, E.html_mod.escape(ko_of[nxt]))
-                if nxt else "<span class='step off'>다음 ›</span>")
+        for lab, h2 in (("‹ 이전", prv), ("다음 ›", nxt)):
+            nav += ("<a class=step href='%s_%s.html' title='%s'>%s</a>"
+                    % (tags[h2], h2, E.html_mod.escape(ko_of[h2]), lab))
         if len(sibs) > 1:
             nav += "<span class=sep>|</span>"
             for h2 in sibs:
@@ -133,6 +131,7 @@ def main():
         doc = ("<!doctype html><html lang=ko><head><meta charset=utf-8>"
                "<meta name=viewport content='width=device-width,"
                "initial-scale=1,viewport-fit=cover'>"
+               "<meta http-equiv=Cache-Control content=no-cache>"
                "<title>%s — 히오스 3D</title><style>%s</style></head><body>%s"
                "<script>window.PAGE=%s;</script>"
                "<script src='../js/viewer.js'></script></body></html>"
@@ -143,49 +142,83 @@ def main():
                 encoding="utf-8").write(doc)
         cards.append((tag, hero, ko, len(rs)))
 
-    cards.sort(key=lambda c: E._tag_key(c[0]))
-    items = "".join(
-        "<a class=card href='h/%s_%s.html'><b><em>%s</em>%s</b>"
-        "<span>스킨 %d</span></a>"
-        % (tag, hero, tag,
-           E.html_mod.escape(E.ROOT_KO.get(hero, ko)
-                             if hero not in E.VIKING_KO
-                             else "%s (%s)" % (ko, E.VIKING_KO[hero])), n)
-        for tag, hero, ko, n in cards)
+    # ── 영웅 목록: 역할군별 아이콘 판 ────────────────────────────────
+    # 게임의 영웅은 90명이고 변신 형태는 그 안에 딸린 것이라, 목록에는 90명만
+    # 세우고 변신폼은 영웅 페이지의 상단 바에서 건너뛰게 둔다.
+    roles = {}
+    rp = os.path.join(DATA, "roles.js")
+    if os.path.exists(rp):
+        t = read(rp)
+        roles = json.loads(t[t.index("=") + 1:].rstrip().rstrip(";"))
+    ORDER = ["전사", "투사", "근접 암살자", "원거리 암살자", "치유사", "지원가"]
+    grp = {}
+    for slug, m in roles.items():
+        if slug not in tags:
+            continue
+        grp.setdefault(m.get("role") or "그 밖", []).append((m["ko"], slug))
+    for k in grp:
+        grp[k].sort()
+    secs = ""
+    total = 0
+    for role in ORDER + [k for k in sorted(grp) if k not in ORDER]:
+        lst = grp.get(role)
+        if not lst:
+            continue
+        total += len(lst)
+        cards2 = "".join(
+            "<a class=hero href='h/%s_%s.html' title='%s %s'>"
+            "<img loading=lazy src='icons/%s.jpg' alt=''>"
+            "<span>%s</span></a>"
+            % (tags[sl], sl, tags[sl], E.html_mod.escape(ko),
+               sl, E.html_mod.escape(ko))
+            for ko, sl in lst)
+        secs += ("<h2>%s<i>%d</i></h2><div class=grid>%s</div>"
+                 % (E.html_mod.escape(role), len(lst), cards2))
+
     io.open(os.path.join(OUT, "index.html"), "w", encoding="utf-8").write(
         "<!doctype html><html lang=ko><head><meta charset=utf-8>"
         "<meta name=viewport content='width=device-width,initial-scale=1'>"
+        "<meta http-equiv=Cache-Control content=no-cache>"
         "<title>히오스 영웅 3D</title><style>"
-        "body{background:#0b0f16;color:#e6edf7;font-family:'Malgun Gothic',"
-        "sans-serif;padding:28px;margin:0}h1{font-size:20px}"
-        "p{color:#8b9bb4;font-size:13px}"
-"#notice{margin:16px 0 4px;padding:12px 14px;border-radius:8px;"
-"background:#1b1408;border:1px solid #6b4f1d;color:#e8d9b6;"
-"font-size:13px;line-height:1.7;max-width:820px}"
-"#notice b{color:#ffcf7a}"
-        "#g{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,"
-        "1fr));gap:8px;margin-top:18px}"
-        ".card{display:flex;flex-direction:column;gap:2px;padding:10px 12px;"
-        "background:#131a24;border:1px solid #243044;border-radius:8px;"
-        "color:#e6edf7;text-decoration:none}"
-        ".card:hover{border-color:#4ea3ff}"
-        ".card em{font-style:normal;font-size:11px;color:#5b8dd6;"
-        "font-family:Consolas,monospace;margin-right:6px}"
-        ".card span{color:#8b9bb4;font-size:11px}</style></head><body>"
+        "body{background:#0b0f16;color:#e6edf7;margin:0;padding:24px 28px 40px;"
+        "font-family:'Malgun Gothic',sans-serif}"
+        "h1{font-size:20px;margin:0 0 4px}"
+        "p.sub{color:#8b9bb4;font-size:13px;margin:0}"
+        "#notice{margin:16px 0 8px;padding:12px 14px;border-radius:8px;"
+        "background:#1b1408;border:1px solid #6b4f1d;color:#e8d9b6;"
+        "font-size:13px;line-height:1.7;max-width:820px}"
+        "#notice b{color:#ffcf7a}"
+        "h2{font-size:15px;color:#7ee0c0;margin:26px 0 10px;"
+        "padding-bottom:6px;border-bottom:1px solid #1e2836}"
+        "h2 i{font-style:normal;color:#5b6b84;font-size:11px;margin-left:8px}"
+        ".grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,"
+        "1fr));gap:10px}"
+        ".hero{display:flex;flex-direction:column;align-items:center;gap:6px;"
+        "text-decoration:none;color:#c3cfe2;font-size:12px;text-align:center;"
+        "padding:6px 2px;border-radius:10px}"
+        ".hero img{width:64px;height:64px;border-radius:50%;"
+        "border:2px solid #243044;background:#131a24;display:block}"
+        ".hero:hover{color:#fff;background:#131a24}"
+        ".hero:hover img{border-color:#f0c04a;"
+        "box-shadow:0 0 12px #f0c04a66}"
+        "@media (max-width:640px){body{padding:16px 12px 32px}"
+        ".grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px}"
+        ".hero img{width:56px;height:56px}}"
+        "</style></head><body>"
         "<h1>히오스 영웅 3D</h1>"
+        "<p class=sub>영웅 " + str(total) + "명 · 역할군별로 살펴보세요. "
+        "영웅을 누르면 스킨·크로마를 3D 로 돌려볼 수 있고, "
+        "변신 형태가 있는 영웅은 그 안에서 건너뜁니다.</p>"
         "<div id=notice><b>비상업 팬 제작물입니다.</b> 게임 모델·텍스처·"
         "동작은 <b>© Blizzard Entertainment</b> (Heroes of the Storm) 의 "
         "저작물이며, 이 사이트는 블리자드와 아무 관련이 없습니다. "
         "광고·후원 없이 개인이 만든 감상용이고, 권리자의 요청이 있으면 "
-        "즉시 내립니다.</div>"
-        "<p>영웅을 누르면 그 영웅의 스킨·색배합을 3D 로 돌려볼 수 있다. "
-        "모델·텍스처는 누를 때 받아온다.</p>"
-        "<div id=g>" + items + "</div>"
-        "<p style='margin-top:26px;font-size:11px;color:#5b6b84'>"
-        "제작 SINONIS · Claude(Anthropic) 도움 · 게임 모델·텍스처·동작 "
-        "© Blizzard Entertainment (Heroes of the Storm) · 비상업 팬 제작물"
-        "</p></body></html>")
-    print("웹판 만듦: 영웅 %d명" % len(cards))
+        "즉시 내립니다.</div>" + secs +
+        "<p style='margin-top:30px;font-size:11px;color:#5b6b84'>"
+        "제작 SINONIS · Claude(Anthropic) 도움</p>"
+        "</body></html>")
+    print("웹판 만듦: 영웅 %d명 (목록 %d명 · %d역할군)"
+          % (len(cards), total, len(grp)))
 
 
 if __name__ == "__main__":

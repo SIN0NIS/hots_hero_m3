@@ -1,4 +1,4 @@
-<!doctype html><html lang=ko><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1,viewport-fit=cover'><title>머키 — 히오스 3D</title><style>
+<!doctype html><html lang=ko><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1,viewport-fit=cover'><meta http-equiv=Cache-Control content=no-cache><title>머키 — 히오스 3D</title><style>
 :root{--bg:#0b0f16;--panel:#131a24cc;--line:#243044;--fg:#e6edf7;
 --dim:#8b9bb4;--accent:#4ea3ff}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
@@ -126,9 +126,7 @@ display:flex;gap:6px;align-items:baseline}
 #nav a.home{color:#e6edf7;background:#131a24;border-color:#243044}
 #nav a.step{background:#131a24;border-color:#243044;color:#c3cfe2}
 #nav .step.off{opacity:.35}
-#nav a.on{background:#d43f3a;color:#fff;border-color:#d43f3a}
 #nav em{font-style:normal;color:#5b8dd6;font-family:Consolas,monospace;margin-right:5px}
-#nav a.on em{color:#ffd9d7}
 #nav .sep{color:#2c3a50;flex:none}
 #top{top:46px}
 #skins{left:auto;right:14px;top:46px;justify-content:flex-end;max-width:58%}
@@ -140,7 +138,8 @@ display:flex;gap:6px;align-items:baseline}
 #anims .arow{border:1px solid var(--line);border-radius:14px;background:#131a24e6;padding:6px 12px;font-size:12px;display:inline-flex;backdrop-filter:blur(6px)}
 #anims .arow .dur{display:none}
 #bAnims{display:none!important}
-#anims .arow.on,#skins button.on,#vars button.on{background:#d43f3a!important;color:#fff!important;border-color:#d43f3a!important}
+#anims .arow.on,#skins button.on,#vars button.on,#nav a.on{background:#1c2534!important;color:#ffe9b0!important;border-color:#f0c04a!important;box-shadow:0 0 0 1px #f0c04a66,0 0 12px #f0c04a55!important}
+#nav a.on em{color:#f0c04a!important}
 @media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{left:8px;right:8px;top:64px;max-width:none;justify-content:flex-start}#vars{left:8px;right:8px;top:100px;max-width:none;justify-content:flex-start}#anims{left:8px;right:8px;bottom:58px;transform:none;max-width:none;max-height:none}}
 </style></head><body><div id=nav><a class=home href='../index.html'>← 영웅 목록</a><span class=sep>|</span><a class=step href='29_malfurion.html' title='말퓨리온'>‹ 이전</a><a class=step href='31_medivh.html' title='메디브'>다음 ›</a></div>
 <div id="top"><b id="t"></b><span id="s"></span></div>
