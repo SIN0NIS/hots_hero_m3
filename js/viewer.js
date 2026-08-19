@@ -1264,12 +1264,26 @@ function selectAnim(i) {
   markAnim();
 }
 
+/* 웹판은 동작이 넷뿐이라 이름을 아이콘 + 한글로 바꿔 준다 (PAGE.animKo).
+   낱개판은 동작이 수십 개라 원래 이름 그대로가 낫다. */
+var ANIM_KO = [[/^stand dance/i, "\uD83D\uDC83 춤"],
+               [/^taunt/i, "\uD83D\uDC4B 도발"],
+               [/^walk/i, "\uD83D\uDEB6 걷기"],
+               [/^stand/i, "\uD83E\uDDCD 대기"],
+               [/^기본 자세$/, "\u2299 기본 자세"]];
+function animLabel(name) {
+  if (!(window.PAGE && PAGE.animKo)) return name;
+  for (var i = 0; i < ANIM_KO.length; i++)
+    if (ANIM_KO[i][0].test(name)) return ANIM_KO[i][1];
+  return name;
+}
+
 function animRow(i, label, dur, fxn) {
   var e = document.createElement("div");
   e.className = "arow";
   e.dataset.i = String(i);
   var nm = document.createElement("span");
-  nm.textContent = label;
+  nm.textContent = animLabel(label);
   e.appendChild(nm);
   if (fxn) {
     var fx = document.createElement("span");

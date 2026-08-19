@@ -31,7 +31,7 @@ DATA = os.path.join(OUT, "data")
 
 # 웹판 UI 는 «재생/멈춤» 만 남긴다 — 속도·표정 고르개는 감춘다 (요소를 지우면
 # 그것을 만지는 코드가 깨지므로 감추기만 한다)
-WEB_CSS = '\n#bar select{display:none!important}\n#anims{position:fixed;left:14px;top:150px;bottom:auto;width:auto;max-width:calc(100% - 90px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;gap:5px;overflow:visible;display:flex!important}\n#animFind{display:none}\n#animList{display:flex;flex-wrap:wrap;gap:5px;padding:0;overflow:visible;flex:none}\n#anims .ahead{display:none}\n#anims .arow{border:1px solid var(--line);border-radius:12px;background:#1a2331;padding:4px 10px;font-size:11px;display:inline-flex}\n#anims .arow .dur{display:none}\n#bAnims{display:none!important}\n#nav{position:fixed;left:0;right:0;top:0;height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#0b0f16ee;border-bottom:1px solid #243044;z-index:5;overflow-x:auto;white-space:nowrap;scrollbar-width:none}\n#nav::-webkit-scrollbar{display:none}\n#nav a{color:#8b9bb4;text-decoration:none;font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid transparent;flex:none}\n#nav a:hover{color:#e6edf7;border-color:#4ea3ff}\n#nav a.home{color:#e6edf7;background:#131a24;border-color:#243044}\n#nav a.on{background:#4ea3ff;color:#04121f;border-color:#4ea3ff}\n#nav em{font-style:normal;color:#5b8dd6;font-family:Consolas,monospace;margin-right:5px}\n#nav a.on em{color:#0a3a5e}\n#nav .sep{color:#2c3a50;flex:none}\n#top{top:46px}#skins{top:78px}#vars{top:120px}\n@media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{top:64px}#vars{top:100px}#anims{left:8px;right:8px;top:136px;max-width:none;max-height:none}}\n'
+WEB_CSS = '\n#bar select{display:none!important}\n#nav{position:fixed;left:0;right:0;top:0;height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#0b0f16ee;border-bottom:1px solid #243044;z-index:5;overflow-x:auto;white-space:nowrap;scrollbar-width:none}\n#nav::-webkit-scrollbar{display:none}\n#nav a,#nav .step{color:#8b9bb4;text-decoration:none;font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid transparent;flex:none}\n#nav a:hover{color:#e6edf7;border-color:#4ea3ff}\n#nav a.home{color:#e6edf7;background:#131a24;border-color:#243044}\n#nav a.step{background:#131a24;border-color:#243044;color:#c3cfe2}\n#nav .step.off{opacity:.35}\n#nav a.on{background:#d43f3a;color:#fff;border-color:#d43f3a}\n#nav em{font-style:normal;color:#5b8dd6;font-family:Consolas,monospace;margin-right:5px}\n#nav a.on em{color:#ffd9d7}\n#nav .sep{color:#2c3a50;flex:none}\n#top{top:46px}\n#skins{left:auto;right:14px;top:46px;justify-content:flex-end;max-width:58%}\n#vars{left:auto;right:14px;top:88px;justify-content:flex-end;max-width:58%}\n#anims{position:fixed;left:50%;transform:translateX(-50%);right:auto;top:auto;bottom:62px;width:auto;max-width:calc(100% - 28px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:6px;overflow:visible;display:flex!important}\n#animFind{display:none}\n#animList{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:0;overflow:visible;flex:none}\n#anims .ahead{display:none}\n#anims .arow{border:1px solid var(--line);border-radius:14px;background:#131a24e6;padding:6px 12px;font-size:12px;display:inline-flex;backdrop-filter:blur(6px)}\n#anims .arow .dur{display:none}\n#bAnims{display:none!important}\n#anims .arow.on,#skins button.on,#vars button.on{background:#d43f3a!important;color:#fff!important;border-color:#d43f3a!important}\n@media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{left:8px;right:8px;top:64px;max-width:none;justify-content:flex-start}#vars{left:8px;right:8px;top:100px;max-width:none;justify-content:flex-start}#anims{left:8px;right:8px;bottom:58px;transform:none;max-width:none;max-height:none}}\n'
 
 
 def read(p):
@@ -93,8 +93,10 @@ def main():
     for k in fam:
         fam[k].sort(key=lambda h: E._tag_key(tags[h]))
 
+    order = sorted(by, key=lambda h: E._tag_key(tags[h]))
+    pos = {h: k for k, h in enumerate(order)}
     cards = []
-    for hero in sorted(by):
+    for hero in order:
         rs = by[hero]
         ko, tag = ko_of[hero], tags[hero]
         name = "%s_%s" % (tag, hero)
@@ -106,10 +108,20 @@ def main():
         vk = base.get("hero0", hero)
         page = {"title": ko, "sub": "스킨 %d" % len(rs), "skins": skins,
                 "current": 0, "baseAnim": base.get("akey") or "",
-                "web": "../data/", "varsKey": vk if vk in has_var else ""}
+                "web": "../data/", "varsKey": vk if vk in has_var else "",
+                "animKo": True}
         body = E.BODY
         sibs = fam.get(tag.split("-")[0], [])
-        nav = ("<a class=home href='../index.html'>← 영웅 목록</a>")
+        k = pos[hero]
+        prv, nxt = order[k - 1] if k else None,             order[k + 1] if k + 1 < len(order) else None
+        nav = ("<a class=home href='../index.html'>← 영웅 목록</a>"
+               "<span class=sep>|</span>")
+        nav += ("<a class=step href='%s_%s.html' title='%s'>‹ 이전</a>"
+                % (tags[prv], prv, E.html_mod.escape(ko_of[prv]))
+                if prv else "<span class='step off'>‹ 이전</span>")
+        nav += ("<a class=step href='%s_%s.html' title='%s'>다음 ›</a>"
+                % (tags[nxt], nxt, E.html_mod.escape(ko_of[nxt]))
+                if nxt else "<span class='step off'>다음 ›</span>")
         if len(sibs) > 1:
             nav += "<span class=sep>|</span>"
             for h2 in sibs:

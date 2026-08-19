@@ -119,25 +119,30 @@ display:flex;gap:6px;align-items:baseline}
 }
 
 #bar select{display:none!important}
-#anims{position:fixed;left:14px;top:150px;bottom:auto;width:auto;max-width:calc(100% - 90px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;gap:5px;overflow:visible;display:flex!important}
-#animFind{display:none}
-#animList{display:flex;flex-wrap:wrap;gap:5px;padding:0;overflow:visible;flex:none}
-#anims .ahead{display:none}
-#anims .arow{border:1px solid var(--line);border-radius:12px;background:#1a2331;padding:4px 10px;font-size:11px;display:inline-flex}
-#anims .arow .dur{display:none}
-#bAnims{display:none!important}
 #nav{position:fixed;left:0;right:0;top:0;height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#0b0f16ee;border-bottom:1px solid #243044;z-index:5;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
 #nav::-webkit-scrollbar{display:none}
-#nav a{color:#8b9bb4;text-decoration:none;font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid transparent;flex:none}
+#nav a,#nav .step{color:#8b9bb4;text-decoration:none;font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid transparent;flex:none}
 #nav a:hover{color:#e6edf7;border-color:#4ea3ff}
 #nav a.home{color:#e6edf7;background:#131a24;border-color:#243044}
-#nav a.on{background:#4ea3ff;color:#04121f;border-color:#4ea3ff}
+#nav a.step{background:#131a24;border-color:#243044;color:#c3cfe2}
+#nav .step.off{opacity:.35}
+#nav a.on{background:#d43f3a;color:#fff;border-color:#d43f3a}
 #nav em{font-style:normal;color:#5b8dd6;font-family:Consolas,monospace;margin-right:5px}
-#nav a.on em{color:#0a3a5e}
+#nav a.on em{color:#ffd9d7}
 #nav .sep{color:#2c3a50;flex:none}
-#top{top:46px}#skins{top:78px}#vars{top:120px}
-@media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{top:64px}#vars{top:100px}#anims{left:8px;right:8px;top:136px;max-width:none;max-height:none}}
-</style></head><body><div id=nav><a class=home href='../index.html'>← 영웅 목록</a><span class=sep>|</span><a href='79_tychus.html'><em>79</em>타이커스</a><a class=on href='79-01_tychusodin.html'><em>79-01</em>타이커스 (오딘)</a></div>
+#top{top:46px}
+#skins{left:auto;right:14px;top:46px;justify-content:flex-end;max-width:58%}
+#vars{left:auto;right:14px;top:88px;justify-content:flex-end;max-width:58%}
+#anims{position:fixed;left:50%;transform:translateX(-50%);right:auto;top:auto;bottom:62px;width:auto;max-width:calc(100% - 28px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:6px;overflow:visible;display:flex!important}
+#animFind{display:none}
+#animList{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:0;overflow:visible;flex:none}
+#anims .ahead{display:none}
+#anims .arow{border:1px solid var(--line);border-radius:14px;background:#131a24e6;padding:6px 12px;font-size:12px;display:inline-flex;backdrop-filter:blur(6px)}
+#anims .arow .dur{display:none}
+#bAnims{display:none!important}
+#anims .arow.on,#skins button.on,#vars button.on{background:#d43f3a!important;color:#fff!important;border-color:#d43f3a!important}
+@media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{left:8px;right:8px;top:64px;max-width:none;justify-content:flex-start}#vars{left:8px;right:8px;top:100px;max-width:none;justify-content:flex-start}#anims{left:8px;right:8px;bottom:58px;transform:none;max-width:none;max-height:none}}
+</style></head><body><div id=nav><a class=home href='../index.html'>← 영웅 목록</a><span class=sep>|</span><a class=step href='79_tychus.html' title='타이커스'>‹ 이전</a><a class=step href='80_tassadar.html' title='태사다르'>다음 ›</a><span class=sep>|</span><a href='79_tychus.html'><em>79</em>타이커스</a><a class=on href='79-01_tychusodin.html'><em>79-01</em>타이커스 (오딘)</a></div>
 <div id="top"><b id="t"></b><span id="s"></span></div>
 <div id="skins"></div>
 <div id="vars"></div>
@@ -184,4 +189,4 @@ display:flex;gap:6px;align-items:baseline}
 <div id="credit">제작 SINONIS · Claude(Anthropic) 도움 ·
 모델·텍스처 © Blizzard Entertainment</div>
 <div id="msg">불러오는 중…</div>
-<script>window.PAGE={"title":"타이커스 (오딘)","sub":"스킨 2","skins":[{"slug":"storm_hero_tychus_base_morph_odin","label":"기본","skin":"base","href":null,"akey":"","fkey":""},{"slug":"storm_hero_tychus_infested_morph_odin","label":"infested","skin":"infested","href":null,"akey":"","fkey":""}],"current":0,"baseAnim":"","web":"../data/","varsKey":"tychus"};</script><script src='../js/viewer.js'></script></body></html>
+<script>window.PAGE={"title":"타이커스 (오딘)","sub":"스킨 2","skins":[{"slug":"storm_hero_tychus_base_morph_odin","label":"기본","skin":"base","href":null,"akey":"","fkey":""},{"slug":"storm_hero_tychus_infested_morph_odin","label":"infested","skin":"infested","href":null,"akey":"","fkey":""}],"current":0,"baseAnim":"","web":"../data/","varsKey":"tychus","animKo":true};</script><script src='../js/viewer.js'></script></body></html>
