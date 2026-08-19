@@ -31,7 +31,7 @@ DATA = os.path.join(OUT, "data")
 
 # 웹판 UI 는 «재생/멈춤» 만 남긴다 — 속도·표정 고르개는 감춘다 (요소를 지우면
 # 그것을 만지는 코드가 깨지므로 감추기만 한다)
-WEB_CSS = '\n#bar select{display:none!important}\n#anims{position:fixed;left:14px;top:118px;bottom:auto;width:auto;max-width:calc(100% - 90px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;gap:5px;overflow:visible;display:flex!important}\n#animFind{display:none}\n#animList{display:flex;flex-wrap:wrap;gap:5px;padding:0;overflow:visible;flex:none}\n#anims .ahead{display:none}\n#anims .arow{border:1px solid var(--line);border-radius:12px;background:#1a2331;padding:4px 10px;font-size:11px;display:inline-flex}\n#anims .arow .dur{display:none}\n#bAnims{display:none!important}\n@media (max-width:640px){#anims{left:8px;right:8px;top:104px;max-width:none;max-height:none}}\n'
+WEB_CSS = '\n#bar select{display:none!important}\n#anims{position:fixed;left:14px;top:150px;bottom:auto;width:auto;max-width:calc(100% - 90px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;gap:5px;overflow:visible;display:flex!important}\n#animFind{display:none}\n#animList{display:flex;flex-wrap:wrap;gap:5px;padding:0;overflow:visible;flex:none}\n#anims .ahead{display:none}\n#anims .arow{border:1px solid var(--line);border-radius:12px;background:#1a2331;padding:4px 10px;font-size:11px;display:inline-flex}\n#anims .arow .dur{display:none}\n#bAnims{display:none!important}\n#nav{position:fixed;left:0;right:0;top:0;height:36px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#0b0f16ee;border-bottom:1px solid #243044;z-index:5;overflow-x:auto;white-space:nowrap;scrollbar-width:none}\n#nav::-webkit-scrollbar{display:none}\n#nav a{color:#8b9bb4;text-decoration:none;font-size:12px;padding:4px 10px;border-radius:12px;border:1px solid transparent;flex:none}\n#nav a:hover{color:#e6edf7;border-color:#4ea3ff}\n#nav a.home{color:#e6edf7;background:#131a24;border-color:#243044}\n#nav a.on{background:#4ea3ff;color:#04121f;border-color:#4ea3ff}\n#nav em{font-style:normal;color:#5b8dd6;font-family:Consolas,monospace;margin-right:5px}\n#nav a.on em{color:#0a3a5e}\n#nav .sep{color:#2c3a50;flex:none}\n#top{top:46px}#skins{top:78px}#vars{top:120px}\n@media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{top:64px}#vars{top:100px}#anims{left:8px;right:8px;top:136px;max-width:none;max-height:none}}\n'
 
 
 def read(p):
@@ -85,6 +85,14 @@ def main():
     if os.path.isdir(vdir):
         has_var = {f[:-3] for f in os.listdir(vdir) if f.endswith(".js")}
 
+    # 같은 번호를 나눠 쓰는 무리(레가르 18 / 늑대 18-01, 바이킹 07-1~3) 는
+    # 상단 바에서 서로 바로 건너뛸 수 있게 미리 묶어 둔다
+    fam = {}
+    for h, tg in tags.items():
+        fam.setdefault(tg.split("-")[0], []).append(h)
+    for k in fam:
+        fam[k].sort(key=lambda h: E._tag_key(tags[h]))
+
     cards = []
     for hero in sorted(by):
         rs = by[hero]
@@ -100,13 +108,23 @@ def main():
                 "current": 0, "baseAnim": base.get("akey") or "",
                 "web": "../data/", "varsKey": vk if vk in has_var else ""}
         body = E.BODY
+        sibs = fam.get(tag.split("-")[0], [])
+        nav = ("<a class=home href='../index.html'>← 영웅 목록</a>")
+        if len(sibs) > 1:
+            nav += "<span class=sep>|</span>"
+            for h2 in sibs:
+                nav += ("<a %shref='%s_%s.html'><em>%s</em>%s</a>"
+                        % ("class=on " if h2 == hero else "",
+                           tags[h2], h2, tags[h2],
+                           E.html_mod.escape(ko_of[h2])))
+        nav = "<div id=nav>%s</div>" % nav
         doc = ("<!doctype html><html lang=ko><head><meta charset=utf-8>"
                "<meta name=viewport content='width=device-width,"
                "initial-scale=1,viewport-fit=cover'>"
                "<title>%s — 히오스 3D</title><style>%s</style></head><body>%s"
                "<script>window.PAGE=%s;</script>"
                "<script src='../js/viewer.js'></script></body></html>"
-               % (E.html_mod.escape(ko), E.CSS + WEB_CSS, body,
+               % (E.html_mod.escape(ko), E.CSS + WEB_CSS, nav + body,
                   json.dumps(page, ensure_ascii=False,
                              separators=(",", ":"))))
         io.open(os.path.join(OUT, "h", name + ".html"), "w",
