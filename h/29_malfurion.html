@@ -119,6 +119,14 @@ display:flex;gap:6px;align-items:baseline}
 }
 
 #bar select{display:none!important}
+#anims{position:fixed;left:14px;top:118px;bottom:auto;width:auto;max-width:calc(100% - 90px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;gap:5px;overflow:visible;display:flex!important}
+#animFind{display:none}
+#animList{display:flex;flex-wrap:wrap;gap:5px;padding:0;overflow:visible;flex:none}
+#anims .ahead{display:none}
+#anims .arow{border:1px solid var(--line);border-radius:12px;background:#1a2331;padding:4px 10px;font-size:11px;display:inline-flex}
+#anims .arow .dur{display:none}
+#bAnims{display:none!important}
+@media (max-width:640px){#anims{left:8px;right:8px;top:104px;max-width:none;max-height:none}}
 </style></head><body>
 <div id="top"><b id="t"></b><span id="s"></span></div>
 <div id="skins"></div>

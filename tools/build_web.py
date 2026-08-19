@@ -31,7 +31,7 @@ DATA = os.path.join(OUT, "data")
 
 # 웹판 UI 는 «재생/멈춤» 만 남긴다 — 속도·표정 고르개는 감춘다 (요소를 지우면
 # 그것을 만지는 코드가 깨지므로 감추기만 한다)
-WEB_CSS = '\n#bar select{display:none!important}\n'
+WEB_CSS = '\n#bar select{display:none!important}\n#anims{position:fixed;left:14px;top:118px;bottom:auto;width:auto;max-width:calc(100% - 90px);background:none;border:0;backdrop-filter:none;flex-direction:row;flex-wrap:wrap;gap:5px;overflow:visible;display:flex!important}\n#animFind{display:none}\n#animList{display:flex;flex-wrap:wrap;gap:5px;padding:0;overflow:visible;flex:none}\n#anims .ahead{display:none}\n#anims .arow{border:1px solid var(--line);border-radius:12px;background:#1a2331;padding:4px 10px;font-size:11px;display:inline-flex}\n#anims .arow .dur{display:none}\n#bAnims{display:none!important}\n@media (max-width:640px){#anims{left:8px;right:8px;top:104px;max-width:none;max-height:none}}\n'
 
 
 def read(p):
