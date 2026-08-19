@@ -66,7 +66,13 @@ def main():
         if hero in label_of:
             ko = "%s (%s)" % (ko, label_of[hero])
         ko_of[hero] = ko
-    tags = E.assign_tags(ko_of)
+    # 변신 형태 무리는 «부모 영웅»의 번호를 물려받는다 (레가르 18 / 늑대 18-01)
+    extra_sub = {}
+    for h, rs in by.items():
+        h0 = (rs[0] or {}).get("hero0")
+        if h0 and h0 in by and h0 != h:
+            extra_sub[h] = (h0, "m")
+    tags = E.assign_tags(ko_of, extra_sub)
 
     # 공용 뷰어 한 벌
     os.makedirs(os.path.join(OUT, "js"), exist_ok=True)
