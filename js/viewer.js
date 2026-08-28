@@ -178,6 +178,9 @@ function program(gl, vs, fs) {
 var cv = document.getElementById("gl");
 var msg = document.getElementById("msg");
 var gl = cv.getContext("webgl2", { antialias: true, alpha: false });
+// 그림 품질 손잡이. 콘솔에서 __ssaa(1) 로 낮추면 바로 가벼워진다.
+var SSAA = 1, SS_LIMIT = 8e6;   // 웹판은 손님 기기를 생각해 기본 1
+window.__ssaa = function (n) { SSAA = n || 1; resize(); };
 if (!gl) { msg.textContent = "이 브라우저는 WebGL2 를 지원하지 않는다."; return; }
 
 var prog = program(gl, VS, FS), gprog = program(gl, GVS, GFS);
@@ -233,7 +236,7 @@ function makeTexture(uri) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
     var ax = gl.getExtension("EXT_texture_filter_anisotropic");
     if (ax) gl.texParameterf(gl.TEXTURE_2D, ax.TEXTURE_MAX_ANISOTROPY_EXT,
-      Math.min(8, gl.getParameter(ax.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+      gl.getParameter(ax.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
   };
   im.src = uri;
   return t;
@@ -986,8 +989,13 @@ window.addEventListener("resize", function () {
 });
 
 function resize() {
-  var dpr = Math.min(window.devicePixelRatio || 1, 2);
-  var w = Math.round(cv.clientWidth * dpr), h = Math.round(cv.clientHeight * dpr);
+  // 초과표본 — 화면보다 크게 그린 뒤 줄여서 계단을 없앤다.
+  // 화소 수에 천장을 둬서 큰 창에서도 그래픽 카드가 버틴다.
+  var dpr = (window.devicePixelRatio || 1) * SSAA;
+  var cw = cv.clientWidth, ch = cv.clientHeight;
+  var px = cw * ch * dpr * dpr;
+  if (px > SS_LIMIT) dpr *= Math.sqrt(SS_LIMIT / px);
+  var w = Math.round(cw * dpr), h = Math.round(ch * dpr);
   if (w && h && (cv.width !== w || cv.height !== h)) { cv.width = w; cv.height = h; }
 }
 
@@ -1011,6 +1019,11 @@ function renderFrame() {
   if (opt.spin) cam.yaw += dt * 0.5;
   resize();
   gl.viewport(0, 0, cv.width, cv.height);
+  // 배경은 전역 테마(scrap.theme → html[data-theme])를 따른다
+  if (document.documentElement.getAttribute("data-theme") === "light")
+    gl.clearColor(0.933, 0.945, 0.961, 1);
+  else
+    gl.clearColor(0.043, 0.059, 0.086, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   if (!cur) return;
 
