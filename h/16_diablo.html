@@ -148,6 +148,8 @@ display:flex;gap:6px;align-items:baseline}
 :root[data-theme="light"] button.on{color:#ffffff}
 :root[data-theme="light"] #skins button.on{color:#ffffff}
 :root[data-theme="light"] #toast{background:#ffffffee}
+:root[data-theme="light"] #anims .arow{background:#ffffffe6;color:#31405a}
+:root[data-theme="light"] #anims .arow.on,:root[data-theme="light"] #skins button.on,:root[data-theme="light"] #vars button.on,:root[data-theme="light"] #nav a.on{background:#fff6dd!important;color:#8a6d2f!important;border-color:#c8a24b!important;box-shadow:0 0 0 1px #c8a24b55,0 0 10px #c8a24b33!important}
 </style></head><body><div id=nav><a class=home href='../index.html'>← 영웅 목록</a><span class=sep>|</span><a class=step href='10_stitches.html' title='누더기'>‹ 이전</a><a class=step href='27_malganis.html' title='말가니스'>다음 ›</a></div>
 <div id="top"><b id="t"></b><span id="s"></span></div>
 <div id="skins"></div>
@@ -195,51 +197,5 @@ display:flex;gap:6px;align-items:baseline}
 <div id="credit">제작 SINONIS · Claude(Anthropic) 도움 ·
 모델·텍스처 © Blizzard Entertainment</div>
 <div id="msg">불러오는 중…</div>
-<script>window.PAGE={"title":"디아블로","sub":"스킨 7","skins":[{"slug":"storm_hero_diablo_base","label":"기본","skin":"base","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""},{"slug":"storm_hero_diablo_archangel","label":"archangel","skin":"archangel","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""},{"slug":"storm_hero_diablo_kaijo","label":"kaijo","skin":"kaijo","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""},{"slug":"storm_hero_diablo_lurkablo","label":"lurkablo","skin":"lurkablo","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""},{"slug":"storm_hero_diablo_prime","label":"대악마","skin":"prime","href":null,"akey":"storm_hero_diablo_prime_requiredanims","fkey":"storm_hero_diablo_prime_facialanims"},{"slug":"storm_hero_diablo_summer18","label":"엘 챠무코","skin":"summer18","href":null,"akey":"storm_hero_diablo_summer18_requiredanims","fkey":""},{"slug":"storm_hero_diablo_ultimate","label":"지옥강철","skin":"ultimate","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""}],"current":0,"baseAnim":"storm_hero_diablo_requiredanims_v01","web":"../data/","varsKey":"diablo","animKo":true};</script><script src='../js/viewer.js'></script><script>
-/* HotS Scrap 전역 바 v3 — 별도 저장소라 절대 주소, 바 자체도 테마를 따른다 */
-(function () {
-  var KEY = 'scrap.theme';
-  var BASE = 'https://sin0nis.github.io/hots-scrap/';
-  function cur() {
-    var t = null;
-    try { t = localStorage.getItem(KEY); } catch (e) {}
-    if (!t) t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-    return t;
-  }
-  function addBar() {
-    if (document.getElementById('scrap-bar')) return;
-    var d = document.createElement('div');
-    d.id = 'scrap-bar';
-    var marginCss = (location.pathname.indexOf('/h/') > -1) ? 'margin:0;' : 'margin:-24px -28px 18px;';
-    d.innerHTML = '<a id="scrap-brand" href="' + BASE + '" style="font-weight:600;letter-spacing:0.3px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><img id="scrap-logo" src="' + BASE + 'shared/logo_light.svg" alt="" style="height:18px;width:18px;"> HotS Scrap</a>'
-      + '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:6px;align-items:center;">'
-      + '<button id="scrap-theme-btn" type="button" title="다크/라이트 전환 — 지원 화면에 적용 (3D 화면은 다크 고정)" style="border-radius:99px;padding:4px 10px;cursor:pointer;font-size:12px;line-height:1;">◐</button>'
-      + '<a id="scrap-gh" href="https://github.com/SIN0NIS/hots-scrap" target="_blank" rel="noopener" title="GitHub 저장소" style="text-decoration:none;font-size:12px;line-height:1;border-radius:99px;padding:4px 10px;">🔗</a>'
-      + '</span>';
-    document.body.prepend(d);
-    var btn = document.getElementById('scrap-theme-btn');
-    function paint() {
-      var light = cur() === 'light';
-      document.documentElement.setAttribute('data-theme', cur());
-      d.style.cssText = 'padding:6px 96px;text-align:center;font:13px/1 "Malgun Gothic","Segoe UI",sans-serif;position:relative;z-index:99999;' + marginCss
-        + (light ? 'background:#e8eef7;border-bottom:2px solid #c8a24b;' : 'background:#0b1526;border-bottom:2px solid #8a6d2f;');
-      document.getElementById('scrap-brand').style.color = light ? '#a97e1f' : '#e8c268';
-      document.getElementById('scrap-logo').src = BASE + 'shared/' + (light ? 'logo.svg' : 'logo_light.svg');
-      var ctl = light ? 'background:#ffffff;border:1px solid #cdd9ea;color:#31405a;' : 'background:#132b4d;border:1px solid #233a5c;color:#eaf1fa;';
-      btn.style.cssText = 'border-radius:99px;padding:4px 10px;cursor:pointer;font-size:12px;line-height:1;' + ctl;
-      document.getElementById('scrap-gh').style.cssText = 'text-decoration:none;font-size:12px;line-height:1;border-radius:99px;padding:4px 10px;' + ctl;
-      btn.textContent = light ? '◑ 라이트' : '◐ 다크';
-    }
-    btn.addEventListener('click', function () {
-      var next = cur() === 'dark' ? 'light' : 'dark';
-      try { localStorage.setItem(KEY, next); } catch (e) {}
-      paint();
-    });
-    paint();
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addBar);
-  else addBar();
-  window.addEventListener('load', addBar);
-})();
-</script>
+<script>window.PAGE={"title":"디아블로","sub":"스킨 7","skins":[{"slug":"storm_hero_diablo_base","label":"기본","skin":"base","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""},{"slug":"storm_hero_diablo_archangel","label":"archangel","skin":"archangel","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""},{"slug":"storm_hero_diablo_kaijo","label":"kaijo","skin":"kaijo","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""},{"slug":"storm_hero_diablo_lurkablo","label":"lurkablo","skin":"lurkablo","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""},{"slug":"storm_hero_diablo_prime","label":"대악마","skin":"prime","href":null,"akey":"storm_hero_diablo_prime_requiredanims","fkey":"storm_hero_diablo_prime_facialanims"},{"slug":"storm_hero_diablo_summer18","label":"엘 챠무코","skin":"summer18","href":null,"akey":"storm_hero_diablo_summer18_requiredanims","fkey":""},{"slug":"storm_hero_diablo_ultimate","label":"지옥강철","skin":"ultimate","href":null,"akey":"storm_hero_diablo_requiredanims_v01","fkey":""}],"current":0,"baseAnim":"storm_hero_diablo_requiredanims_v01","web":"../data/","varsKey":"diablo","animKo":true};</script><script src='../js/viewer.js'></script><script src="https://sin0nis.github.io/hots-scrap/shared/scrap.js" defer></script>
 </body></html>
