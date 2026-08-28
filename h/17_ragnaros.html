@@ -188,4 +188,40 @@ display:flex;gap:6px;align-items:baseline}
 <div id="credit">제작 SINONIS · Claude(Anthropic) 도움 ·
 모델·텍스처 © Blizzard Entertainment</div>
 <div id="msg">불러오는 중…</div>
-<script>window.PAGE={"title":"라그나로스","sub":"스킨 3","skins":[{"slug":"storm_hero_ragnaros_base","label":"기본","skin":"base","href":null,"akey":"storm_hero_ragnaros_requiredanims","fkey":"storm_hero_ragnaros_facialanims"},{"slug":"storm_hero_ragnaros_lil","label":"꼬마","skin":"lil","href":null,"akey":"storm_hero_ragnaros_lil_requiredanims","fkey":"storm_hero_ragnaros_lil_facialanims"},{"slug":"storm_hero_ragnaros_ultimate","label":"설퍼론","skin":"ultimate","href":null,"akey":"storm_hero_ragnaros_requiredanims","fkey":"storm_hero_ragnaros_facialanims"}],"current":0,"baseAnim":"storm_hero_ragnaros_requiredanims","web":"../data/","varsKey":"ragnaros","animKo":true};</script><script src='../js/viewer.js'></script></body></html>
+<script>window.PAGE={"title":"라그나로스","sub":"스킨 3","skins":[{"slug":"storm_hero_ragnaros_base","label":"기본","skin":"base","href":null,"akey":"storm_hero_ragnaros_requiredanims","fkey":"storm_hero_ragnaros_facialanims"},{"slug":"storm_hero_ragnaros_lil","label":"꼬마","skin":"lil","href":null,"akey":"storm_hero_ragnaros_lil_requiredanims","fkey":"storm_hero_ragnaros_lil_facialanims"},{"slug":"storm_hero_ragnaros_ultimate","label":"설퍼론","skin":"ultimate","href":null,"akey":"storm_hero_ragnaros_requiredanims","fkey":"storm_hero_ragnaros_facialanims"}],"current":0,"baseAnim":"storm_hero_ragnaros_requiredanims","web":"../data/","varsKey":"ragnaros","animKo":true};</script><script src='../js/viewer.js'></script><script>
+/* HotS Scrap 전역 바 — 별도 저장소라 절대 주소 사용 */
+(function () {
+  function addBar() {
+    if (document.getElementById('scrap-bar')) return;
+    var d = document.createElement('div');
+    d.id = 'scrap-bar';
+    d.style.cssText = 'background:#0b1526;border-bottom:2px solid #8a6d2f;padding:6px 96px;text-align:center;font:13px/1 "Malgun Gothic","Segoe UI",sans-serif;position:relative;z-index:99999;margin:-24px -28px 18px;';
+    if (location.pathname.indexOf('/h/') > -1) d.style.margin = '0';
+    d.innerHTML = '<a href="https://sin0nis.github.io/hots-scrap/" style="color:#e8c268;font-weight:600;letter-spacing:0.3px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><img src="https://sin0nis.github.io/hots-scrap/shared/logo_light.svg" alt="" style="height:18px;width:18px;"> HotS Scrap</a>'
+      + '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:6px;align-items:center;">'
+      + '<button id="scrap-theme-btn" type="button" title="전체 테마 전환 — 메인 등 지원 화면에 적용 (이 화면은 다크 고정)" style="background:#132b4d;border:1px solid #233a5c;color:#eaf1fa;border-radius:99px;padding:4px 10px;cursor:pointer;font-size:12px;line-height:1;">◐</button>'
+      + '<a href="https://github.com/SIN0NIS/hots-scrap" target="_blank" rel="noopener" title="GitHub 저장소" style="color:#8fa2bd;text-decoration:none;font-size:12px;line-height:1;border:1px solid #233a5c;border-radius:99px;padding:4px 10px;background:#132b4d;">🔗</a>'
+      + '</span>';
+    document.body.prepend(d);
+    var KEY = 'scrap.theme';
+    var btn = document.getElementById('scrap-theme-btn');
+    function cur() {
+      var t = null;
+      try { t = localStorage.getItem(KEY); } catch (e) {}
+      if (!t) t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      return t;
+    }
+    function label() { btn.textContent = cur() === 'dark' ? '◐ 다크' : '◑ 라이트'; }
+    btn.addEventListener('click', function () {
+      var next = cur() === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+      label();
+    });
+    label();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addBar);
+  else addBar();
+  window.addEventListener('load', addBar);
+})();
+</script>
+</body></html>
