@@ -1,4 +1,4 @@
-<!doctype html><html lang=ko><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1,viewport-fit=cover'><meta http-equiv=Cache-Control content=no-cache><title>메디브 — 히오스 3D</title><style>
+<!doctype html><html lang=ko><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1,viewport-fit=cover'><meta http-equiv=Cache-Control content=no-cache><title>메디브 · 모델 뷰어</title><link rel="icon" type="image/svg+xml" href="https://sin0nis.github.io/hots-scrap/shared/favicon.svg"><style>
 :root{--bg:#0b0f16;--panel:#131a24cc;--line:#243044;--fg:#e6edf7;
 --dim:#8b9bb4;--accent:#4ea3ff}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
@@ -141,8 +141,17 @@ display:flex;gap:6px;align-items:baseline}
 #anims .arow.on,#skins button.on,#vars button.on,#nav a.on{background:#1c2534!important;color:#ffe9b0!important;border-color:#f0c04a!important;box-shadow:0 0 0 1px #f0c04a66,0 0 12px #f0c04a55!important}
 #nav a.on em{color:#f0c04a!important}
 @media (max-width:640px){#nav{height:32px;padding:0 8px}#top{top:38px}#skins{left:8px;right:8px;top:64px;max-width:none;justify-content:flex-start}#vars{left:8px;right:8px;top:100px;max-width:none;justify-content:flex-start}#anims{left:8px;right:8px;bottom:58px;transform:none;max-width:none;max-height:none}}
-</style></head><body><div id=nav><a class=home href='../index.html'>← 영웅 목록</a><span class=sep>|</span><a class=step href='07-1_lostolaf.html' title='길 잃은 바이킹'>‹ 이전</a><a class=step href='49_abathur.html' title='아바투르'>다음 ›</a><span class=sep>|</span><a class=on href='31_medivh.html'><em>31</em>메디브</a><a href='31-01_medivhraven.html'><em>31-01</em>메디브 (까마귀 변신)</a></div>
-<div id="top"><b id="t"></b><span id="s"></span></div>
+
+/* 라이트 테마 — 전역 바(scrap.theme)가 data-theme 을 켠다. 3D 배경은 다크 유지 */
+:root[data-theme="light"]{--panel:#ffffffd9;--line:#c4d0e0;--fg:#1a2434;--dim:#5d6b7f;--accent:#1758a8}
+:root[data-theme="light"] select,:root[data-theme="light"] button{background:#ffffff}
+:root[data-theme="light"] button.on{color:#ffffff}
+:root[data-theme="light"] #skins button.on{color:#ffffff}
+:root[data-theme="light"] #toast{background:#ffffffee}
+:root[data-theme="light"] #anims .arow{background:#ffffffe6;color:#31405a}
+:root[data-theme="light"] #anims .arow.on,:root[data-theme="light"] #skins button.on,:root[data-theme="light"] #vars button.on,:root[data-theme="light"] #nav a.on{background:#fff6dd!important;color:#8a6d2f!important;border-color:#c8a24b!important;box-shadow:0 0 0 1px #c8a24b55,0 0 10px #c8a24b33!important}
+</style></head><body data-scrap-back-right="140px"><div id=nav><a class=home href='../index.html'>← 영웅 목록</a><span class=sep>|</span><a class=step href='07-1_lostolaf.html' title='길 잃은 바이킹'>‹ 이전</a><a class=step href='49_abathur.html' title='아바투르'>다음 ›</a><span class=sep>|</span><a class=on href='31_medivh.html'><em>31</em>메디브</a><a href='31-01_medivhraven.html'><em>31-01</em>메디브 (까마귀 변신)</a></div>
+<div id="top"><a href="../" title="모델 뷰어 홈으로" style="color:var(--dim);text-decoration:none;font-size:12px;border:1px solid var(--line);border-radius:99px;padding:3px 10px;background:var(--panel);">⌂ 모델 뷰어</a><b id="t"></b><span id="s"></span></div>
 <div id="skins"></div>
 <div id="vars"></div>
 <canvas id="gl"></canvas>
@@ -188,4 +197,5 @@ display:flex;gap:6px;align-items:baseline}
 <div id="credit">제작 SINONIS · Claude(Anthropic) 도움 ·
 모델·텍스처 © Blizzard Entertainment</div>
 <div id="msg">불러오는 중…</div>
-<script>window.PAGE={"title":"메디브","sub":"스킨 3","skins":[{"slug":"storm_hero_medivh_base","label":"기본","skin":"base","href":null,"akey":"storm_hero_medivh_requiredanims","fkey":"storm_hero_medivh_facialanims"},{"slug":"storm_hero_medivh_knightowl","label":"밤부엉이 기사","skin":"knightowl","href":null,"akey":"storm_hero_medivh_requiredanims","fkey":""},{"slug":"storm_hero_medivh_ultimate","label":"대학자","skin":"ultimate","href":null,"akey":"storm_hero_medivh_requiredanims","fkey":"storm_hero_medivh_facialanims"}],"current":0,"baseAnim":"storm_hero_medivh_requiredanims","web":"../data/","varsKey":"medivh","animKo":true};</script><script src='../js/viewer.js'></script></body></html>
+<script>window.PAGE={"title":"메디브","sub":"스킨 3","skins":[{"slug":"storm_hero_medivh_base","label":"기본","skin":"base","href":null,"akey":"storm_hero_medivh_requiredanims","fkey":"storm_hero_medivh_facialanims"},{"slug":"storm_hero_medivh_knightowl","label":"밤부엉이 기사","skin":"knightowl","href":null,"akey":"storm_hero_medivh_requiredanims","fkey":""},{"slug":"storm_hero_medivh_ultimate","label":"대학자","skin":"ultimate","href":null,"akey":"storm_hero_medivh_requiredanims","fkey":"storm_hero_medivh_facialanims"}],"current":0,"baseAnim":"storm_hero_medivh_requiredanims","web":"../data/","varsKey":"medivh","animKo":true};</script><script src='../js/viewer.js'></script><script src="https://sin0nis.github.io/hots-scrap/shared/scrap.js" defer></script>
+</body></html>
