@@ -93,12 +93,10 @@ function rInvAffine(m, out) {
 var VS = "#version 300 es\nprecision highp float;\n" +
 "layout(location=0) in vec3 aPos;\nlayout(location=1) in vec3 aNrm;\n" +
 "layout(location=2) in vec2 aUV;\nlayout(location=3) in vec4 aBone;\n" +
-"layout(location=4) in vec4 aWeight;\nlayout(location=5) in float aVA;
-layout(location=6) in vec4 aTan;   // xyz 접선 · w 손잡이\n" +
+"layout(location=4) in vec4 aWeight;\nlayout(location=5) in float aVA;\n" +
 "uniform mat4 uMVP;\n" +
 "uniform sampler2D uBones;\nuniform int uSkin;\n" +
-"out vec3 vN; out vec2 vUV; out vec3 vP; out float vVA;
-out vec4 vT;\n" +
+"out vec3 vN; out vec2 vUV; out vec3 vP; out float vVA;\n" +
 "void fetchBone(int b, out vec3 r0, out vec3 r1, out vec3 r2, out vec3 r3){\n" +
 "  vec4 a=texelFetch(uBones,ivec2(b*3,0),0);\n" +
 "  vec4 c=texelFetch(uBones,ivec2(b*3+1,0),0);\n" +
@@ -115,9 +113,8 @@ out vec4 vT;\n" +
 "  vN=n; vUV=aUV; vP=p; vVA=aVA;\n  gl_Position=uMVP*vec4(p,1.0);\n}";
 
 var FS = "#version 300 es\nprecision highp float;\n" +
-"in vec3 vN; in vec2 vUV; in vec3 vP; in float vVA;
-in vec4 vT;\n" +
-"uniform sampler2D uTex, uEmis, uNrmMap, uSpecMap;\n" +
+"in vec3 vN; in vec2 vUV; in vec3 vP; in float vVA;\n" +
+"uniform sampler2D uTex, uEmis;\n" +
 "uniform int uHasTex,uHasEmis,uUnshaded;\nuniform float uCutout;\n" +
 "uniform float uFade,uScroll;\n" +
 "uniform vec3 uEye,uSolid,uTint;\nuniform float uEmisGain;\n" +
@@ -182,14 +179,13 @@ var cv = document.getElementById("gl");
 var msg = document.getElementById("msg");
 var gl = cv.getContext("webgl2", { antialias: true, alpha: false });
 // 그림 품질 손잡이. 콘솔에서 __ssaa(1) 로 낮추면 바로 가벼워진다.
-var SSAA = 2, SS_LIMIT = 16e6;
+var SSAA = 1, SS_LIMIT = 8e6;   // 웹판은 손님 기기를 생각해 기본 1
 window.__ssaa = function (n) { SSAA = n || 1; resize(); };
 if (!gl) { msg.textContent = "이 브라우저는 WebGL2 를 지원하지 않는다."; return; }
 
 var prog = program(gl, VS, FS), gprog = program(gl, GVS, GFS);
 var U = {}, GU = {};
-["uMVP","uTex","uEmis","uNrmMap","uSpecMap","uHasNrmMap","uHasSpecMap",
- "uHasTex","uHasEmis","uUnshaded","uCutout","uEye",
+["uMVP","uTex","uEmis","uHasTex","uHasEmis","uUnshaded","uCutout","uEye",
  "uSolid","uBones","uSkin","uFade","uScroll",
  "uEmisGain","uTint"].forEach(function (n) {
   U[n] = gl.getUniformLocation(prog, n);
@@ -644,13 +640,6 @@ function buildModel(d) {
     gl.disableVertexAttribArray(5);
     gl.vertexAttrib1f(5, 1.0);
   }
-  // 접선. 법선 지도를 쓰는 모델에만 실려 있다.
-  if (d.tan) {
-    attrF(6, new Float32Array(b64ToBuf(d.tan)), 4);
-  } else {
-    gl.disableVertexAttribArray(6);
-    gl.vertexAttrib4f(6, 1.0, 0.0, 0.0, 1.0);
-  }
   if (bIdx) {
     var b3 = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, b3);
@@ -1030,6 +1019,11 @@ function renderFrame() {
   if (opt.spin) cam.yaw += dt * 0.5;
   resize();
   gl.viewport(0, 0, cv.width, cv.height);
+  // 배경은 전역 테마(scrap.theme → html[data-theme])를 따른다
+  if (document.documentElement.getAttribute("data-theme") === "light")
+    gl.clearColor(0.933, 0.945, 0.961, 1);
+  else
+    gl.clearColor(0.043, 0.059, 0.086, 1);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   if (!cur) return;
 
@@ -1091,8 +1085,6 @@ function renderFrame() {
   gl.uniform3fv(U.uEye, new Float32Array(eye));
   gl.uniform1i(U.uTex, 0);
   gl.uniform1i(U.uEmis, 1);
-  gl.uniform1i(U.uNrmMap, 3);
-  gl.uniform1i(U.uSpecMap, 4);
   gl.uniform1i(U.uBones, 2);
   gl.uniform3f(U.uSolid, 0.72, 0.74, 0.78);
   drawOne(cur, mvp, true);
@@ -1168,12 +1160,6 @@ function drawOne(m, mvpM, isHero, fade, tMs) {
       var hasE = g.emis >= 0 && m.texs[g.emis];
       gl.uniform1i(U.uHasEmis, hasE ? 1 : 0);
       if (hasE) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, m.texs[g.emis]); }
-      var hasN = g.nmap >= 0 && m.texs[g.nmap];
-      gl.uniform1i(U.uHasNrmMap, hasN ? 1 : 0);
-      if (hasN) { gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, m.texs[g.nmap]); }
-      var hasS = g.smap >= 0 && m.texs[g.smap];
-      gl.uniform1i(U.uHasSpecMap, hasS ? 1 : 0);
-      if (hasS) { gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, m.texs[g.smap]); }
       gl.uniform1i(U.uUnshaded, g.unshaded ? 1 : 0);
       gl.uniform1f(U.uCutout, g.cutout > 0 ? g.cutout / 255 : 0);
       // 넓게 덮는 발광은 세기를 낮춰 굽는다 (없으면 1.0)
