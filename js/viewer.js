@@ -1396,6 +1396,7 @@ function catOf(name) {
   var n = name.toLowerCase();
   if (n.indexOf("ride") >= 0) return "탈것";
   if (/^(taunt|stand victory|stand dance|dance|emote|cheer)/.test(n)) return "감정 표현";
+  if (/channel|hearth/.test(n)) return "정신 집중 · 귀환";
   if (n.indexOf("spell") === 0) return "스킬";
   if (n.indexOf("attack") === 0) return "공격";
   if (n.indexOf("walk") === 0 || n.indexOf("run") === 0) return "이동";
@@ -1403,7 +1404,7 @@ function catOf(name) {
     return "서기 · 잔동작";
   return "기타";
 }
-var CATORDER = ["공격", "스킬", "이동", "서기 · 잔동작", "감정 표현", "기타", "탈것"];
+var CATORDER = ["스킬", "공격", "정신 집중 · 귀환", "이동", "서기 · 잔동작", "감정 표현", "기타", "탈것"];
 var curAnimName = null;
 
 function markChain() {
@@ -1440,14 +1441,18 @@ var WORD_KO = { stand: "대기", walk: "걷기", run: "달리기", attack: "공�
   ridebike: "탈것(바이크)", forward: "앞으로", back: "뒤로", omni: "사방", alternate: "다른", cover: "숨기",
   death: "죽음", spawn: "등장", birth: "등장", morph: "변신", turn: "돌기", left: "왼쪽", right: "오른쪽",
   slow: "느리게", fast: "빠르게", work: "작업", portrait: "초상", cinematic: "연출", emote: "감정 표현",
-  cheer: "환호", sit: "앉기", hold: "버티기", charge: "돌진", leap: "도약", jump: "점프", fly: "날기" };
+  cheer: "환호", sit: "앉기", hold: "버티기", charge: "돌진", leap: "도약", jump: "점프", fly: "날기",
+  hearth: "귀환", interact: "상호작용", mount: "탈것 타기", turbo: "가속", ridenone: "맨몸", backward: "뒤로",
+  superior: "위", inferior: "아래", custom: "특수", pose: "자세", upgrade: "강화", burrow: "잠복", blink: "점멸",
+  click: "클릭", unpowered: "꺼짐", in: "들어가기", out: "나오기" };
 var _koMode = 0;   // 1 = 전체 동작을 받은 뒤 (낱말 풀이)
 function animLabel(name) {
   if (!(window.PAGE && PAGE.animKo)) return name;
   if (!_koMode || /^기본 자세$/.test(name))
     for (var i = 0; i < ANIM_KO.length; i++)
       if (ANIM_KO[i][0].test(name)) return ANIM_KO[i][1];
-  var ph = { "stand dance": "춤", "stand victory": "승리", "stand ready": "전투 대기", "walk a": "걷기" };
+  var ph = { "stand dance": "춤", "stand victory": "승리", "stand ready": "전투 대기", "walk a": "걷기",
+             "spell channel": "정신 집중", "channel hearth": "귀환", "spell omni": "기술(사방)", "spell forward": "기술(앞으로)" };
   var ln0 = name.toLowerCase();
   for (var pk in ph) if (ln0 === pk || ln0.indexOf(pk + " ") === 0) name = ph[pk] + name.slice(pk.length);
   return name.split(/\s+/).map(function (w) {
@@ -1482,45 +1487,109 @@ function animRow(i, label, dur, fxn) {
   return e;
 }
 
+/* ── 목록 짓기 ─────────────────────────────────────────────────────────
+   한 줄 = 한 동작.
+   · 시작·반복·끝으로 쪼개진 것은 한 줄 — 누르면 시작 → 반복 → 끝 → (상위 동작) 으로 이어 돈다.
+   · 같은 동작의 다른 판은 같은 이름 + 번호 — 번호 붙은 판(Attack 01·02 …)도, 같은 기술에 걸린
+     동작(Spell C · Spell C Alternate = E 냉기 돌풍)도. 기술 이름은 게임 액터 자료에서 뽑은
+     _labels.js(«Abil.X.SourceCastStart → AnimPlay Spell,B»)를 따른다. */
 var famOpen = {};
-function famRow(m, f) {
-  var e = document.createElement("div");
-  e.className = "arow fam"; e.dataset.fam = f.key;
-  var cr = document.createElement("span");
-  cr.className = "caret"; cr.textContent = famOpen[f.key] ? "▾" : "▸";
-  cr.title = "낱개 동작 보기";
-  e.appendChild(cr);
-  var nm = document.createElement("span");
-  nm.textContent = animLabel(f.base);
-  if (_koMode && nm.textContent !== f.base) e.title = f.base + " — 묶음으로 이어서 재생";
-  e.appendChild(nm);
-  var tag = document.createElement("span");
-  tag.className = "ftag";
-  var parts = [];
+var SLOT_ORDER = { Q: 1, W: 2, E: 3, R: 4, D: 5, "1": 6, B: 8, Z: 9 };
+function curLabels() {
+  var A = window.ANIM_LABELS || {}, s = PAGE.skins[curIdx] || {}, o = {};
+  [PAGE.baseAnim, s.akey].forEach(function (k) { var x = A[k]; if (x) for (var n in x) o[n] = x[n]; });
+  return o;
+}
+function buildUnits(m) {
+  var fams = buildFamilies(m), L = curLabels(), units = [];
+  m._fams = fams;
+  fams.forEach(function (f) {
+    var bodies = f.body.length ? f.body : [-1];
+    bodies.forEach(function (b) {
+      var list = [];
+      if (f.start.length) list.push(f.start[0]);
+      if (b >= 0) { list.push(b); if (f.start.length || f.end.length) list.push(b); }
+      if (f.end.length) list.push(f.end[0]);
+      if (f.link >= 0) list.push(f.link);
+      var main = b >= 0 ? b : list[0];
+      var lab = L[m.anims[main].name] || null;
+      if (!lab) f.all.some(function (i) { return (lab = L[m.anims[i].name] || null); });
+      units.push({ main: main, list: list, f: f, lab: lab, key: f.key + "#" + main,
+                   loopFrom: (!f.end.length && f.start.length && b >= 0) ? 1 : 0 });
+    });
+  });
+  units.forEach(function (u) {
+    var nm0 = m.anims[u.main].name;
+    if (u.lab) { u.slot = u.lab[0]; u.name = u.slot === "평타" ? "평타" : u.slot + " " + u.lab[1]; }
+    else { u.slot = /^attack/i.test(nm0) ? "평타" : ""; u.name = u.slot || animLabel(u.f.base); }
+    u.cat = u.slot === "평타" ? "공격" : u.slot ? "스킬" : catOf(nm0);
+  });
+  var groups = {};
+  units.forEach(function (u) { var g = u.cat + "|" + u.name; (groups[g] = groups[g] || []).push(u); });
+  Object.keys(groups).forEach(function (g) {
+    var us = groups[g];
+    us.sort(function (x, y) { return m.anims[x.main].name.localeCompare(m.anims[y.main].name, "en", { numeric: true }); });
+    us.forEach(function (u, k) { u.num = us.length > 1 ? k + 1 : 0; u.group = us; });
+  });
+  return units;
+}
+function phaseTag(m, u) {
+  var f = u.f, parts = [];
   if (f.start.length || f.end.length)
     parts.push([f.start.length ? "시작" : "", "반복", f.end.length ? "끝" : ""].filter(Boolean).join("→"));
-  if (f.body.length > 1) parts.push(f.body.length + "가지");
   if (f.link >= 0) parts.push("→ " + animLabel(m.anims[f.link].name));
-  tag.textContent = parts.join(" · ");
-  e.appendChild(tag);
-  var tot = f.list.reduce(function (s, i) { return s + m.anims[i].dur; }, 0);
+  return parts.join(" · ");
+}
+function unitRow(m, u) {
+  var multi = u.list.length > 1;
+  var e = document.createElement("div");
+  e.className = "arow fam unit" + (u.num ? " num" : ""); e.dataset.fam = u.key; e.dataset.i = String(u.main);
+  var cr = document.createElement("span");
+  cr.className = "caret"; cr.textContent = multi ? (famOpen[u.key] ? "▾" : "▸") : "";
+  if (multi) cr.title = "이어지는 부분 보기";
+  e.appendChild(cr);
+  var nm = document.createElement("span");
+  nm.textContent = u.name + (u.num ? " " + u.num : "");
+  e.appendChild(nm);
+  e.title = u.list.filter(function (x, k, a) { return a.indexOf(x) === k; })
+    .map(function (i) { return m.anims[i].name; }).join(" → ");
+  var tg = phaseTag(m, u);
+  if (tg) { var t = document.createElement("span"); t.className = "ftag"; t.textContent = tg; e.appendChild(t); }
+  var tot = u.list.reduce(function (s, i) { return s + m.anims[i].dur; }, 0);
   var d = document.createElement("span"); d.className = "dur"; d.textContent = (tot / 1000).toFixed(1) + "초";
   e.appendChild(d);
   e.onclick = function (ev) {
-    if (ev.target === cr) {
-      famOpen[f.key] = !famOpen[f.key];
-      cr.textContent = famOpen[f.key] ? "▾" : "▸";
+    if (multi && ev.target === cr) {
+      famOpen[u.key] = !famOpen[u.key];
+      cr.textContent = famOpen[u.key] ? "▾" : "▸";
       applyFind();
       return;
     }
-    selectAnim(f.list[0], { fam: f.key, list: f.list.slice(), k: 0, loopFrom: f.loopFrom });
+    if (multi) selectAnim(u.list[0], { fam: u.key, list: u.list.slice(), k: 0, loopFrom: u.loopFrom });
+    else selectAnim(u.main);
   };
   animListEl.appendChild(e);
-  f.all.forEach(function (i) {
+  if (multi) u.list.filter(function (x, k, a) { return a.indexOf(x) === k; }).forEach(function (i) {
     var a = m.anims[i];
     var r = animRow(i, a.name, (a.dur / 1000).toFixed(1) + "초", 0);
-    r.classList.add("sub"); r.dataset.of = f.key;
+    r.classList.add("sub"); r.dataset.of = u.key;
   });
+}
+// 번호 붙은 묶음 머리: "평타 · 6가지  [▶ 이어서]" — 판들을 차례로(사이는 자세를 재서 섞어) 잇는다
+function groupRow(m, us) {
+  var e = document.createElement("div");
+  e.className = "arow fam grp"; e.dataset.fam = "grp:" + us[0].cat + "|" + us[0].name; e.dataset.i = "x";
+  var cr = document.createElement("span"); cr.className = "caret"; e.appendChild(cr);
+  var nm = document.createElement("span"); nm.textContent = us[0].name; e.appendChild(nm);
+  var t = document.createElement("span"); t.className = "ftag"; t.textContent = us.length + "가지 · ▶ 이어서"; e.appendChild(t);
+  var list = [];
+  us.forEach(function (u) { list = list.concat(u.f.start.length || u.f.end.length ? u.list : [u.main]); });
+  var tot = list.reduce(function (s, i) { return s + m.anims[i].dur; }, 0);
+  var d = document.createElement("span"); d.className = "dur"; d.textContent = (tot / 1000).toFixed(1) + "초";
+  e.appendChild(d);
+  e.title = us[0].name + " " + us.length + "가지를 차례로 이어서";
+  e.onclick = function () { selectAnim(list[0], { fam: e.dataset.fam, list: list, k: 0, loopFrom: 0 }); };
+  animListEl.appendChild(e);
 }
 
 function fillAnims(m) {
@@ -1528,31 +1597,22 @@ function fillAnims(m) {
   animListEl.innerHTML = "";
   animRow(-1, "기본 자세", null, 0);
   moreRow(m);
-  var by = {};
-  m.anims.forEach(function (a, i) {
-    var c = catOf(a.name);
-    (by[c] = by[c] || []).push(i);
-  });
-  var fams = buildFamilies(m), byCat = {};
-  m._fams = fams;
-  fams.forEach(function (f) { var c = catOf(m.anims[f.all[0]].name); (byCat[c] = byCat[c] || []).push(f); });
+  var units = buildUnits(m), byCat = {};
+  units.forEach(function (u) { (byCat[u.cat] = byCat[u.cat] || []).push(u); });
   CATORDER.forEach(function (cat) {
-    var fs = byCat[cat];
-    if (!fs) return;
-    fs.sort(function (a, b) { return a.base.localeCompare(b.base, "en", { numeric: true }); });
+    var us = byCat[cat];
+    if (!us) return;
+    us.sort(function (a, b) {
+      return ((SLOT_ORDER[a.slot] || 7) - (SLOT_ORDER[b.slot] || 7))
+        || a.name.localeCompare(b.name, "ko", { numeric: true }) || a.num - b.num;
+    });
     var h = document.createElement("div");
     h.className = "ahead";
     var ht = document.createElement("span"); ht.textContent = cat; h.appendChild(ht);
     animListEl.appendChild(h);
-    fs.forEach(function (f) {
-      if (f.all.length === 1) {
-        var a = m.anims[f.all[0]];
-        var lab = FXP && FXP.labels && FXP.labels[a.name];
-        animRow(f.all[0], a.name + (lab ? " — " + lab : ""), (a.dur / 1000).toFixed(1) + "초",
-                FXP ? fxForAnim(a.name).length : 0);
-        return;
-      }
-      famRow(m, f);
+    us.forEach(function (u) {
+      if (u.num === 1) groupRow(m, u.group);
+      unitRow(m, u);
     });
   });
   var idx = defaultAnim(m);
@@ -1679,6 +1739,11 @@ function loadAllAnims(btn) {
   var ks = allKeys();
   if (!ks.length) return;
   if (btn) btn.textContent = "받는 중…";
+  // 기술 이름표(Spell B = W 눈보라)를 먼저 — 없어도 동작은 이름 풀이로 나온다
+  if (!window.ANIM_LABELS) return need(PAGE.web + "anims_all/_labels.js", function () {
+    window.ANIM_LABELS = window.ANIM_LABELS || {};
+    loadAllAnims(btn);
+  });
   (function next(k) {
     if (k >= ks.length) {
       allMode = true; _koMode = 1;
@@ -1709,6 +1774,8 @@ function loadAllAnims(btn) {
     "#anims .arow.fam{font-weight:700}" +
     "#anims .arow.famon{outline:1px solid var(--accent);outline-offset:-1px}" +
     "body.allanims #anims .arow.sub{padding-left:28px!important;font-size:11px;opacity:.9}" +
+    "body.allanims #anims .arow.num{padding-left:22px!important}" +
+    "#anims .arow.grp .ftag{color:var(--accent)}" +
     ":root[data-theme=\"light\"] #anims .arow.fam .ftag{color:#1758a8}" +
     "body.allanims #anims{left:14px!important;right:auto!important;transform:none!important;top:118px!important;" +
     "bottom:74px!important;width:250px!important;max-width:none!important;background:var(--panel)!important;" +
