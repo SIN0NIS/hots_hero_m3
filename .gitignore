@@ -3,3 +3,4 @@ __pycache__/
 _verify/
 .DS_Store
 Thumbs.db
+data/anims_all/

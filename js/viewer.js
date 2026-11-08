@@ -326,7 +326,9 @@ function tuneRootLocks(m) {
     if (fr[k] >= 0 && fr[k] < S.n) S.lockLoc[fr[k]] = 0;
 }
 
-function updateBones(m, animIdx, t, faceIdx, ft) {
+/* bl = {i, t, w}: 앞 동작(i)의 t 시점 자세와 지금 자세를 w(0→1) 로 섞는다.
+   동작을 바꿀 때 한 번에 바뀌면 몸이 순간이동하므로 0.25초쯤 겹쳐 넘긴다. */
+function updateBones(m, animIdx, t, faceIdx, ft, bl) {
   var S = m.sk;
   if (!S) return;
   var n = S.n, b;
@@ -336,6 +338,24 @@ function updateBones(m, animIdx, t, faceIdx, ft) {
   got.fill(0);
   var A = (animIdx >= 0 && m.anims[animIdx]) ? m.anims[animIdx] : null;
   if (A) applyAnim(S, A, t, loc, rot, scl, got);
+  var PB = (bl && bl.w < 1 && m.anims[bl.i]) ? m.anims[bl.i] : null;
+  if (PB) {
+    var pl = S.pLoc || (S.pLoc = new Float32Array(n * 3)),
+        pr = S.pRot || (S.pRot = new Float32Array(n * 4)),
+        ps = S.pScl || (S.pScl = new Float32Array(n * 3));
+    pl.set(S.bLoc); pr.set(S.bRot); ps.set(S.bScl);
+    applyAnim(S, PB, bl.t, pl, pr, ps, got);
+    var w = bl.w * bl.w * (3 - 2 * bl.w), u = 1 - w, k;   // 부드럽게 들고 나기
+    for (k = 0; k < n * 3; k++) { loc[k] = pl[k] * u + loc[k] * w; scl[k] = ps[k] * u + scl[k] * w; }
+    for (b = 0; b < n; b++) {
+      var o4 = b * 4;
+      var dq = pr[o4] * rot[o4] + pr[o4+1] * rot[o4+1] + pr[o4+2] * rot[o4+2] + pr[o4+3] * rot[o4+3];
+      var sg = dq < 0 ? -1 : 1, ln2 = 0;
+      for (k = 0; k < 4; k++) { rot[o4+k] = pr[o4+k] * u + rot[o4+k] * w * sg; ln2 += rot[o4+k] * rot[o4+k]; }
+      ln2 = Math.sqrt(ln2) || 1;
+      for (k = 0; k < 4; k++) rot[o4+k] /= ln2;
+    }
+  }
   var F = (faceIdx >= 0 && m.faces[faceIdx]) ? m.faces[faceIdx] : null;
   if (F) applyAnim(S, F, ft, loc, rot, scl, got);
 
@@ -781,7 +801,15 @@ function fitDistance(sm, target, yaw, pitch) {
 var cam = { yaw: -1.05, pitch: 0.18, dist: 6, target: [0,0,1.2], fov: 0.72 };
 var home = null;
 var opt = { spin: false };
-var play = { on: true, anim: -1, t: 0, speed: 1, face: -1, ft: 0 };
+var play = { on: true, anim: -1, t: 0, speed: 1, face: -1, ft: 0, bl: null, chain: null };
+var FADE_MS = 260;
+/* 제자리에서 끝없이 도는 동작(서기·걷기)은 끝과 처음이 이어지게 만들어져 있다.
+   공격·기술처럼 한 번 하고 끝나는 동작은 처음으로 돌 때 섞어서 넘긴다. */
+function loopsClean(name) { return /^(stand|walk|run|fidget|gl)/i.test(name) && !/start|end|victory|dance/i.test(name); }
+function startBlend(fromIdx, fromT) {
+  if (!cur || fromIdx < 0 || !cur.anims[fromIdx]) { play.bl = null; return; }
+  play.bl = { i: fromIdx, t: fromT, start: performance.now(), dur: FADE_MS };
+}
 var cur = null;
 var curIdx = 0;                 // 지금 보는 스킨 번호 (이펙트 고르기에 쓴다)
 var lastT = 0;                  // 모션이 한 바퀴 돌았는지 본다
@@ -1030,7 +1058,20 @@ function renderFrame() {
   var A = (play.anim >= 0 && cur.anims[play.anim]) ? cur.anims[play.anim] : null;
   if (A && play.on) {
     play.t += dt * 1000 * play.speed;
-    if (play.t > A.dur) play.t %= A.dur;
+    var C = play.chain, fade = Math.min(FADE_MS, A.dur * 0.3);
+    if (C && C.list.length > 1) {
+      // 이어 재생: 끝나기 조금 전에 다음 동작으로 섞어 넘긴다 (공격 01 → 02 → 03 …)
+      if (play.t >= A.dur - fade) {
+        startBlend(play.anim, play.t);
+        C.k = (C.k + 1) % C.list.length;
+        play.anim = C.list[C.k]; play.t = 0;
+        curAnimName = cur.anims[play.anim].name;
+        markAnim();
+      }
+    } else if (!loopsClean(A.name) && A.dur > 3 * fade) {
+      if (play.t >= A.dur - fade) { startBlend(play.anim, play.t); play.t = 0; }
+    } else if (play.t > A.dur) play.t %= A.dur;
+    A = cur.anims[play.anim];
     if (timeEl && document.activeElement !== timeEl)
       timeEl.value = String(Math.round(play.t / A.dur * 1000));
   }
@@ -1039,7 +1080,16 @@ function renderFrame() {
     play.ft += dt * 1000 * play.speed;
     if (play.ft > F.dur) play.ft %= F.dur;
   }
-  if (cur.sk) updateBones(cur, play.anim, play.t, play.face, play.ft);
+  var BL = null;
+  if (play.bl) {
+    var bw = (now - play.bl.start) / play.bl.dur, PA = cur.anims[play.bl.i];
+    if (bw >= 1 || !PA) play.bl = null;
+    else {
+      if (play.on) play.bl.t = Math.min(play.bl.t + dt * 1000 * play.speed, PA.dur);
+      BL = { i: play.bl.i, t: play.bl.t, w: Math.max(0, bw) };
+    }
+  }
+  if (cur.sk) updateBones(cur, play.anim, play.t, play.face, play.ft, BL);
 
   // 이펙트 시계: 모션이 처음으로 돌아가면(play.t 가 줄면) 다시 태어난다.
   // 제 길이를 넘기면 사라진 채로 있는다 (잔상 방지).
@@ -1254,6 +1304,7 @@ function syncBtns() {
 function catOf(name) {
   var n = name.toLowerCase();
   if (n.indexOf("ride") >= 0) return "탈것";
+  if (/^(taunt|stand victory|stand dance|dance|emote|cheer)/.test(n)) return "감정 표현";
   if (n.indexOf("spell") === 0) return "스킬";
   if (n.indexOf("attack") === 0) return "공격";
   if (n.indexOf("walk") === 0 || n.indexOf("run") === 0) return "이동";
@@ -1261,16 +1312,25 @@ function catOf(name) {
     return "서기 · 잔동작";
   return "기타";
 }
-var CATORDER = ["스킬", "공격", "이동", "서기 · 잔동작", "탈것", "기타"];
+var CATORDER = ["공격", "스킬", "이동", "서기 · 잔동작", "감정 표현", "기타", "탈것"];
+var CHAIN_CATS = { "공격": 1, "스킬": 1, "서기 · 잔동작": 1, "감정 표현": 1 };
 var curAnimName = null;
 
+function markChain() {
+  [].forEach.call(animListEl.querySelectorAll(".chainb"), function (b) {
+    b.classList.toggle("on", !!play.chain && play.chain.cat === b.dataset.cat);
+  });
+}
 function markAnim() {
   [].forEach.call(animListEl.querySelectorAll(".arow"), function (el) {
     el.classList.toggle("on", parseInt(el.dataset.i, 10) === play.anim);
   });
 }
 
-function selectAnim(i) {
+function selectAnim(i, chain) {
+  if (play.anim !== i) startBlend(play.anim, play.t);
+  play.chain = chain || null;
+  markChain();
   play.anim = i; play.t = 0;
   curAnimName = (i >= 0 && cur && cur.anims[i]) ? cur.anims[i].name : null;
   applyAnimFx();
@@ -1284,11 +1344,29 @@ var ANIM_KO = [[/^stand dance/i, "\uD83D\uDC83 춤"],
                [/^walk/i, "\uD83D\uDEB6 걷기"],
                [/^stand/i, "\uD83E\uDDCD 대기"],
                [/^기본 자세$/, "\u2299 기본 자세"]];
+var WORD_KO = { stand: "대기", walk: "걷기", run: "달리기", attack: "공격", spell: "기술", channel: "정신 집중",
+  ready: "준비", start: "시작", end: "끝", victory: "승리", dance: "춤", taunt: "도발", stun: "기절",
+  flail: "허우적", fidget: "잔동작", ride: "탈것", ridebeast: "탈것(짐승)", ridesurf: "탈것(서핑)",
+  ridebike: "탈것(바이크)", forward: "앞으로", back: "뒤로", omni: "사방", alternate: "다른", cover: "숨기",
+  death: "죽음", spawn: "등장", birth: "등장", morph: "변신", turn: "돌기", left: "왼쪽", right: "오른쪽",
+  slow: "느리게", fast: "빠르게", work: "작업", portrait: "초상", cinematic: "연출", emote: "감정 표현",
+  cheer: "환호", sit: "앉기", hold: "버티기", charge: "돌진", leap: "도약", jump: "점프", fly: "날기" };
+var _koMode = 0;   // 1 = 전체 동작을 받은 뒤 (낱말 풀이)
 function animLabel(name) {
   if (!(window.PAGE && PAGE.animKo)) return name;
-  for (var i = 0; i < ANIM_KO.length; i++)
-    if (ANIM_KO[i][0].test(name)) return ANIM_KO[i][1];
-  return name;
+  if (!_koMode || /^기본 자세$/.test(name))
+    for (var i = 0; i < ANIM_KO.length; i++)
+      if (ANIM_KO[i][0].test(name)) return ANIM_KO[i][1];
+  var ph = { "stand dance": "춤", "stand victory": "승리", "stand ready": "전투 대기", "walk a": "걷기" };
+  var ln0 = name.toLowerCase();
+  for (var pk in ph) if (ln0 === pk || ln0.indexOf(pk + " ") === 0) name = ph[pk] + name.slice(pk.length);
+  return name.split(/\s+/).map(function (w) {
+    var lw = w.toLowerCase();
+    if (WORD_KO[lw]) return WORD_KO[lw];
+    if (/^\d+$/.test(w)) return String(parseInt(w, 10));
+    if (/^[a-z]$/i.test(w)) return w.toUpperCase();
+    return w;
+  }).join(" ");
 }
 
 function animRow(i, label, dur, fxn) {
@@ -1297,6 +1375,7 @@ function animRow(i, label, dur, fxn) {
   e.dataset.i = String(i);
   var nm = document.createElement("span");
   nm.textContent = animLabel(label);
+  if (_koMode && nm.textContent !== label) e.title = label;
   e.appendChild(nm);
   if (fxn) {
     var fx = document.createElement("span");
@@ -1317,6 +1396,7 @@ function fillAnims(m) {
   var keepName = curAnimName;
   animListEl.innerHTML = "";
   animRow(-1, "기본 자세", null, 0);
+  moreRow(m);
   var by = {};
   m.anims.forEach(function (a, i) {
     var c = catOf(a.name);
@@ -1325,8 +1405,22 @@ function fillAnims(m) {
   CATORDER.forEach(function (cat) {
     var idxs = by[cat];
     if (!idxs) return;
+    idxs.sort(function (a, b) {
+      return m.anims[a].name.localeCompare(m.anims[b].name, "en", { numeric: true });
+    });
     var h = document.createElement("div");
-    h.className = "ahead"; h.textContent = cat;
+    h.className = "ahead";
+    var ht = document.createElement("span"); ht.textContent = cat; h.appendChild(ht);
+    // 이어 재생: 이 갈래의 동작을 차례로 (공격 → 공격 1 → 공격 2 …), 사이사이를 섞어 잇는다
+    if (CHAIN_CATS[cat] && idxs.length > 1) {
+      var cb = document.createElement("button");
+      cb.className = "chainb"; cb.dataset.cat = cat; cb.type = "button";
+      cb.textContent = "▶ 이어서"; cb.title = cat + " 동작을 차례로 이어서 재생";
+      var seq = idxs.filter(function (i) { return !/ (start|end)$/i.test(m.anims[i].name); });
+      if (seq.length < 2) seq = idxs.slice();
+      cb.onclick = function () { selectAnim(seq[0], { cat: cat, list: seq, k: 0 }); };
+      h.appendChild(cb);
+    }
     animListEl.appendChild(h);
     idxs.forEach(function (i) {
       var a = m.anims[i];
@@ -1340,9 +1434,11 @@ function fillAnims(m) {
   if (keepName)
     for (var i = 0; i < m.anims.length; i++)
       if (m.anims[i].name === keepName) { idx = i; break; }
+  play.bl = null;          // 모델·목록이 바뀌면 앞 동작 번호가 다른 동작을 가리킨다 — 섞지 않는다
   play.anim = idx; play.t = 0;
+  play.chain = null;       // 이어 재생 목록도 옛 번호다
   curAnimName = (idx >= 0) ? m.anims[idx].name : null;
-  markAnim();
+  markAnim(); markChain();
   applyFind();
 
   var keepFace = faceEl.options[faceEl.selectedIndex];
@@ -1428,6 +1524,76 @@ function fillVars(m) {
   });
 }
 
+/* ── 동작 전부 받기 ─────────────────────────────────────────────────────
+   웹판 동작 파일은 서기·걷기·춤 셋만 담은 가벼운 판이다. anims_all/<key>.js 는 같은
+   모양의 전체판(영웅마다 50개 안팎)이라, 받으면 HERO_ANIMS[key] 가 통째로 갈아 끼워지고
+   attachAnims 를 다시 돌리면 끝이다. 목록(_index.js)이 없는 곳(GitHub Pages 판)에서는
+   단추를 안 보인다. */
+var allMode = false;
+function allKeys() {
+  var s = PAGE.skins[curIdx] || {}, A = window.ANIMS_ALL || {};
+  return [s.akey, PAGE.baseAnim].filter(function (k, i, a) { return k && A[k] && a.indexOf(k) === i; });
+}
+function moreRow(m) {
+  if (allMode || !PAGE.web || !window.ANIMS_ALL) return;
+  var ks = allKeys();
+  if (!ks.length) return;
+  var A = window.ANIMS_ALL, n = 0, kb = 0;
+  ks.forEach(function (k) { n = Math.max(n, A[k][0]); kb += A[k][1]; });
+  if (n <= m.anims.length) return;
+  var e = document.createElement("div");
+  e.className = "arow more";
+  e.textContent = "＋ 동작 전부 (" + n + "개 · 약 " + (kb * 0.6 / 1024).toFixed(1) + "MB)";
+  e.title = "공격·기술·도발·승리 같은 동작을 전부 받습니다";
+  e.onclick = function () { loadAllAnims(e); };
+  animListEl.appendChild(e);
+}
+function loadAllAnims(btn) {
+  var ks = allKeys();
+  if (!ks.length) return;
+  if (btn) btn.textContent = "받는 중…";
+  (function next(k) {
+    if (k >= ks.length) {
+      allMode = true; _koMode = 1;
+      document.body.classList.add("allanims");
+      if (cur) {
+        attachAnims(cur); fillAnims(cur);
+        var stEl = document.getElementById("st");
+        stEl.textContent = stEl.textContent.replace(/ · \d+ 동작$/, "") + " · " + cur.anims.length + " 동작";
+      }
+      return;
+    }
+    need(PAGE.web + "anims_all/" + ks[k] + ".js", function (err) {
+      if (err && btn) { btn.textContent = "못 받았습니다 — 다시 누르기"; return; }
+      next(k + 1);
+    });
+  })(0);
+}
+(function () {
+  var st = document.createElement("style");
+  st.textContent =
+    "#animList .arow.more{border-style:dashed!important;color:var(--accent)!important}" +
+    ".ahead{display:flex;align-items:center;justify-content:space-between;gap:6px}" +
+    ".chainb{font:inherit;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;cursor:pointer;" +
+    "border:1px solid var(--line);background:transparent;color:inherit}" +
+    ".chainb.on{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}" +
+    "body.allanims #anims{left:14px!important;right:auto!important;transform:none!important;top:118px!important;" +
+    "bottom:74px!important;width:250px!important;max-width:none!important;background:var(--panel)!important;" +
+    "border:1px solid var(--line)!important;border-radius:10px!important;flex-direction:column!important;" +
+    "flex-wrap:nowrap!important;justify-content:flex-start!important;gap:0!important;overflow:hidden!important;" +
+    "backdrop-filter:blur(6px)!important;z-index:2}" +
+    "body.allanims #animFind{display:block!important}" +
+    "body.allanims #animList{display:block!important;overflow-y:auto!important;flex:1 1 auto!important;padding:0 6px 8px!important}" +
+    "body.allanims #anims .ahead{display:flex!important}" +
+    "body.allanims #anims .arow{display:flex!important;border:0!important;border-radius:6px!important;" +
+    "background:transparent!important;padding:5px 9px!important;margin:1px 0;backdrop-filter:none!important;box-shadow:none!important}" +
+    "body.allanims #anims .arow.on{background:var(--accent)!important;color:#04121f!important}" +
+    "body.allanims #anims .arow .dur{display:inline!important}" +
+    "@media (max-width:640px){body.allanims #anims{left:8px!important;right:8px!important;width:auto!important;" +
+    "top:auto!important;bottom:58px!important;height:36vh!important}}";
+  document.head.appendChild(st);
+})();
+
 /* 웹판(PAGE.web 이 있을 때): 자료를 페이지에 안 박고 필요할 때 받아온다.
    낱개 파일(file://)은 예전처럼 통째로 들고 있어 이 길로 안 온다. */
 var _got = {};
@@ -1446,7 +1612,11 @@ function show(i) {
   if (!(window.HERO_DATA || {})[s.slug])
     q.push(PAGE.web + "models/" + s.slug + ".js");
   [s.akey, s.fkey, PAGE.baseAnim].forEach(function (k) {
-    if (k && !(window.HERO_ANIMS || {})[k])
+    if (!k) return;
+    // 전체판을 받은 뒤 다른 스킨으로 가면 그 스킨 것도 전체판으로
+    if (allMode && k !== s.fkey && (window.ANIMS_ALL || {})[k] && !_got[PAGE.web + "anims_all/" + k + ".js"])
+      q.push(PAGE.web + "anims_all/" + k + ".js");
+    else if (!(window.HERO_ANIMS || {})[k])
       q.push(PAGE.web + "anims/" + k + ".js");
   });
   if (PAGE.varsKey && !window.HERO_VARS)
@@ -1669,5 +1839,9 @@ function showNow(i) {
   };
   syncBtns();
   show(PAGE.current || 0);
+  // 전체 동작 목록(있는 곳에서만). 없으면 404 하나로 끝나고 단추가 안 생긴다.
+  if (PAGE.web) need(PAGE.web + "anims_all/_index.js", function (err) {
+    if (!err && cur && !allMode) fillAnims(cur);
+  });
 })();
 })();
