@@ -803,13 +803,99 @@ var home = null;
 var opt = { spin: false };
 var play = { on: true, anim: -1, t: 0, speed: 1, face: -1, ft: 0, bl: null, chain: null };
 var FADE_MS = 260;
-/* 제자리에서 끝없이 도는 동작(서기·걷기)은 끝과 처음이 이어지게 만들어져 있다.
-   공격·기술처럼 한 번 하고 끝나는 동작은 처음으로 돌 때 섞어서 넘긴다. */
-function loopsClean(name) { return /^(stand|walk|run|fidget|gl)/i.test(name) && !/start|end|victory|dance/i.test(name); }
-function startBlend(fromIdx, fromT) {
-  if (!cur || fromIdx < 0 || !cur.anims[fromIdx]) { play.bl = null; return; }
-  play.bl = { i: fromIdx, t: fromT, start: performance.now(), dur: FADE_MS };
+function startBlend(fromIdx, fromT, ms) {
+  if (!cur || fromIdx < 0 || !cur.anims[fromIdx] || ms === 0) { play.bl = null; return; }
+  play.bl = { i: fromIdx, t: fromT, start: performance.now(), dur: ms || FADE_MS };
 }
+
+/* ── 동작 묶음 ──────────────────────────────────────────────────────────
+   게임 동작 이름은 «종류 속성… [Start|End] [번호]» 규칙이다.
+     Attack · Attack 01 · Attack 02 …       → 같은 동작의 다른 판(번호) = 한 묶음
+     Stand Start Ready · Stand Ready · Stand Ready End
+                                           → 시작 · 반복 · 끝 = 한 묶음 (낱말 차례는 섞여 있다)
+     Spell A · Spell B …                    → 글자는 다른 기술이라 따로
+     … Alternate                            → 다른 형태(변신·무기)라 따로
+   묶음 하나를 «시작 → 반복(판마다 한 번씩, 하나뿐이면 두 번) → 끝» 으로 한 동작처럼 돈다.
+   잇는 자리는 앞 동작 끝 자세와 뒤 동작 첫 자세의 뼈 회전 차이를 재서
+     거의 같으면(평균 4° 미만) 섞지 않고 그대로 잇고(원래 이어지게 만든 것),
+     다르면 0.26초 섞어 넘긴다. */
+function parseAnim(nm) {
+  var w = String(nm || "").trim().split(/\s+/), type = (w[0] || "").toLowerCase();
+  var phase = "", vari = 0, props = [];
+  for (var i = 1; i < w.length; i++) {
+    var lw = w[i].toLowerCase();
+    if (lw === "start" || lw === "birth") phase = "start";
+    else if (lw === "end" || lw === "stop") phase = "end";
+    else if (/^\d+$/.test(lw)) vari = parseInt(lw, 10);
+    else props.push(lw);
+  }
+  props.sort();
+  var base = w.filter(function (x, i) { return i === 0 || !/^(start|birth|end|stop|\d+)$/i.test(x); }).join(" ");
+  return { phase: phase, vari: vari, key: type + (props.length ? " " + props.join(" ") : ""), base: base };
+}
+function buildFamilies(m) {
+  var fam = {}, order = [];
+  m.anims.forEach(function (a, i) {
+    var pa = parseAnim(a.name), f = fam[pa.key];
+    if (!f) { f = fam[pa.key] = { key: pa.key, base: pa.base, start: [], body: [], end: [] }; order.push(f); }
+    f[pa.phase || "body"].push({ i: i, v: pa.vari });
+    if (!pa.phase) f.base = pa.base;
+  });
+  order.forEach(function (f) {
+    ["start", "body", "end"].forEach(function (k) {
+      f[k] = f[k].sort(function (x, y) { return x.v - y.v; }).map(function (x) { return x.i; });
+    });
+    f.all = f.start.concat(f.body, f.end);
+    var body = (f.body.length === 1 && (f.start.length || f.end.length)) ? [f.body[0], f.body[0]] : f.body.slice();
+    f.list = (f.start.length ? [f.start[0]] : []).concat(body, f.end.length ? [f.end[0]] : []);
+    // 끝이 없는 묶음은 «시작» 을 처음 한 번만 하고 반복 부분만 돈다 (반복 끝 → 시작은 자세가 안 맞는다)
+    f.loopFrom = (!f.end.length && f.start.length && f.body.length) ? 1 : 0;
+    // «끝» 다음에 이어질 동작: 끝 자세와 첫 자세가 맞는(평균 4° 미만) 같은 종류의 반복 동작
+    //   (전투 대기 끝 → 대기). 자세로 찾으므로 이름이 달라도 된다.
+    f.link = -1;
+    if (f.end.length && m.sk) {
+      var last = f.end[0], best = SEAM_OK, type0 = m.anims[last].name.split(/\s+/)[0].toLowerCase();
+      m.anims.forEach(function (a, j) {
+        if (f.all.indexOf(j) >= 0 || parseAnim(a.name).phase) return;
+        if (a.name.split(/\s+/)[0].toLowerCase() !== type0) return;
+        // 상위 동작만: 속성이 이 묶음 속성의 부분집합 (전투 대기 S → 대기 S, 기술 A → 기술 D 는 아님)
+        var mine = f.key.split(" ").slice(1), theirs = parseAnim(a.name).key.split(" ").slice(1);
+        if (theirs.length >= mine.length || theirs.some(function (x) { return mine.indexOf(x) < 0; })) return;
+        var d = seamDeg(m, last, j);
+        if (d < best) { best = d; f.link = j; }
+      });
+      if (f.link >= 0) f.list.push(f.link);
+    }
+  });
+  return order;
+}
+function poseRotAt(m, i, t) {
+  var S = m.sk, n = S.n;
+  var l = new Float32Array(n * 3), r = new Float32Array(n * 4), sc = new Float32Array(n * 3);
+  l.set(S.bLoc); r.set(S.bRot); sc.set(S.bScl);
+  applyAnim(S, m.anims[i], t, l, r, sc, null);
+  return r;
+}
+// 앞 동작 끝 ↔ 뒤 동작 처음, 움직이는 뼈들의 평균 회전 차이(도)
+function seamDeg(m, a, b) {
+  if (!m.sk || !m.anims[a] || !m.anims[b]) return 99;
+  var C = m._seam || (m._seam = {}), k = a + ">" + b;
+  if (C[k] != null) return C[k];
+  var P = m._pose || (m._pose = {});
+  var ea = P["e" + a] || (P["e" + a] = poseRotAt(m, a, m.anims[a].dur));
+  var sb = P["s" + b] || (P["s" + b] = poseRotAt(m, b, 0));
+  var used = {}, sum = 0, cnt = 0;
+  [m.anims[a].bones, m.anims[b].bones].forEach(function (bs) {
+    for (var j = 0; j < bs.length; j++) if (bs[j] >= 0) used[bs[j]] = 1;
+  });
+  for (var bi in used) {
+    var o = bi * 4, d = Math.abs(ea[o] * sb[o] + ea[o+1] * sb[o+1] + ea[o+2] * sb[o+2] + ea[o+3] * sb[o+3]);
+    sum += 2 * Math.acos(Math.min(1, d)) * 180 / Math.PI; cnt++;
+  }
+  return (C[k] = cnt ? sum / cnt : 0);
+}
+var SEAM_OK = 4;   // 이 아래면 원래 이어지게 만든 자리로 본다
+function seamFade(m, a, b) { return seamDeg(m, a, b) < SEAM_OK ? 0 : FADE_MS; }
 var cur = null;
 var curIdx = 0;                 // 지금 보는 스킨 번호 (이펙트 고르기에 쓴다)
 var lastT = 0;                  // 모션이 한 바퀴 돌았는지 본다
@@ -1060,15 +1146,20 @@ function renderFrame() {
     play.t += dt * 1000 * play.speed;
     var C = play.chain, fade = Math.min(FADE_MS, A.dur * 0.3);
     if (C && C.list.length > 1) {
-      // 이어 재생: 끝나기 조금 전에 다음 동작으로 섞어 넘긴다 (공격 01 → 02 → 03 …)
-      if (play.t >= A.dur - fade) {
-        startBlend(play.anim, play.t);
-        C.k = (C.k + 1) % C.list.length;
-        play.anim = C.list[C.k]; play.t = 0;
+      // 묶음 재생: 시작 → 반복 → 끝 → (다시 시작) … 이어지게 만든 자리는 그대로 잇고,
+      // 자세가 다른 자리(공격 01 → 02 같은 판 바꿈)만 끝나기 조금 전에 섞어 넘긴다
+      var nk = C.k + 1 < C.list.length ? C.k + 1 : (C.loopFrom || 0), nx = C.list[nk];
+      var sf = seamFade(cur, play.anim, nx), lead = Math.min(sf, A.dur * 0.3);
+      if (play.t >= A.dur - lead) {
+        var over = Math.max(0, play.t - A.dur);
+        startBlend(play.anim, Math.min(play.t, A.dur), sf);
+        C.k = nk;
+        play.anim = nx; play.t = sf ? 0 : over;
         curAnimName = cur.anims[play.anim].name;
         markAnim();
       }
-    } else if (!loopsClean(A.name) && A.dur > 3 * fade) {
+    } else if (seamDeg(cur, play.anim, play.anim) >= SEAM_OK && A.dur > 3 * fade) {
+      // 끝 자세가 첫 자세와 다르면(공격·기술처럼 한 번 하고 끝나는 동작) 처음으로 섞어 돌아간다
       if (play.t >= A.dur - fade) { startBlend(play.anim, play.t); play.t = 0; }
     } else if (play.t > A.dur) play.t %= A.dur;
     A = cur.anims[play.anim];
@@ -1313,12 +1404,11 @@ function catOf(name) {
   return "기타";
 }
 var CATORDER = ["공격", "스킬", "이동", "서기 · 잔동작", "감정 표현", "기타", "탈것"];
-var CHAIN_CATS = { "공격": 1, "스킬": 1, "서기 · 잔동작": 1, "감정 표현": 1 };
 var curAnimName = null;
 
 function markChain() {
-  [].forEach.call(animListEl.querySelectorAll(".chainb"), function (b) {
-    b.classList.toggle("on", !!play.chain && play.chain.cat === b.dataset.cat);
+  [].forEach.call(animListEl.querySelectorAll(".arow.fam"), function (b) {
+    b.classList.toggle("famon", !!play.chain && play.chain.fam === b.dataset.fam);
   });
 }
 function markAnim() {
@@ -1392,6 +1482,47 @@ function animRow(i, label, dur, fxn) {
   return e;
 }
 
+var famOpen = {};
+function famRow(m, f) {
+  var e = document.createElement("div");
+  e.className = "arow fam"; e.dataset.fam = f.key;
+  var cr = document.createElement("span");
+  cr.className = "caret"; cr.textContent = famOpen[f.key] ? "▾" : "▸";
+  cr.title = "낱개 동작 보기";
+  e.appendChild(cr);
+  var nm = document.createElement("span");
+  nm.textContent = animLabel(f.base);
+  if (_koMode && nm.textContent !== f.base) e.title = f.base + " — 묶음으로 이어서 재생";
+  e.appendChild(nm);
+  var tag = document.createElement("span");
+  tag.className = "ftag";
+  var parts = [];
+  if (f.start.length || f.end.length)
+    parts.push([f.start.length ? "시작" : "", "반복", f.end.length ? "끝" : ""].filter(Boolean).join("→"));
+  if (f.body.length > 1) parts.push(f.body.length + "가지");
+  if (f.link >= 0) parts.push("→ " + animLabel(m.anims[f.link].name));
+  tag.textContent = parts.join(" · ");
+  e.appendChild(tag);
+  var tot = f.list.reduce(function (s, i) { return s + m.anims[i].dur; }, 0);
+  var d = document.createElement("span"); d.className = "dur"; d.textContent = (tot / 1000).toFixed(1) + "초";
+  e.appendChild(d);
+  e.onclick = function (ev) {
+    if (ev.target === cr) {
+      famOpen[f.key] = !famOpen[f.key];
+      cr.textContent = famOpen[f.key] ? "▾" : "▸";
+      applyFind();
+      return;
+    }
+    selectAnim(f.list[0], { fam: f.key, list: f.list.slice(), k: 0, loopFrom: f.loopFrom });
+  };
+  animListEl.appendChild(e);
+  f.all.forEach(function (i) {
+    var a = m.anims[i];
+    var r = animRow(i, a.name, (a.dur / 1000).toFixed(1) + "초", 0);
+    r.classList.add("sub"); r.dataset.of = f.key;
+  });
+}
+
 function fillAnims(m) {
   var keepName = curAnimName;
   animListEl.innerHTML = "";
@@ -1402,32 +1533,26 @@ function fillAnims(m) {
     var c = catOf(a.name);
     (by[c] = by[c] || []).push(i);
   });
+  var fams = buildFamilies(m), byCat = {};
+  m._fams = fams;
+  fams.forEach(function (f) { var c = catOf(m.anims[f.all[0]].name); (byCat[c] = byCat[c] || []).push(f); });
   CATORDER.forEach(function (cat) {
-    var idxs = by[cat];
-    if (!idxs) return;
-    idxs.sort(function (a, b) {
-      return m.anims[a].name.localeCompare(m.anims[b].name, "en", { numeric: true });
-    });
+    var fs = byCat[cat];
+    if (!fs) return;
+    fs.sort(function (a, b) { return a.base.localeCompare(b.base, "en", { numeric: true }); });
     var h = document.createElement("div");
     h.className = "ahead";
     var ht = document.createElement("span"); ht.textContent = cat; h.appendChild(ht);
-    // 이어 재생: 이 갈래의 동작을 차례로 (공격 → 공격 1 → 공격 2 …), 사이사이를 섞어 잇는다
-    if (CHAIN_CATS[cat] && idxs.length > 1) {
-      var cb = document.createElement("button");
-      cb.className = "chainb"; cb.dataset.cat = cat; cb.type = "button";
-      cb.textContent = "▶ 이어서"; cb.title = cat + " 동작을 차례로 이어서 재생";
-      var seq = idxs.filter(function (i) { return !/ (start|end)$/i.test(m.anims[i].name); });
-      if (seq.length < 2) seq = idxs.slice();
-      cb.onclick = function () { selectAnim(seq[0], { cat: cat, list: seq, k: 0 }); };
-      h.appendChild(cb);
-    }
     animListEl.appendChild(h);
-    idxs.forEach(function (i) {
-      var a = m.anims[i];
-      var lab = FXP && FXP.labels && FXP.labels[a.name];
-      var n = FXP ? fxForAnim(a.name).length : 0;
-      animRow(i, a.name + (lab ? " — " + lab : ""),
-              (a.dur / 1000).toFixed(1) + "초", n);
+    fs.forEach(function (f) {
+      if (f.all.length === 1) {
+        var a = m.anims[f.all[0]];
+        var lab = FXP && FXP.labels && FXP.labels[a.name];
+        animRow(f.all[0], a.name + (lab ? " — " + lab : ""), (a.dur / 1000).toFixed(1) + "초",
+                FXP ? fxForAnim(a.name).length : 0);
+        return;
+      }
+      famRow(m, f);
     });
   });
   var idx = defaultAnim(m);
@@ -1471,7 +1596,9 @@ function applyFind() {
       el._any = false; lastHead = el;
       return;
     }
-    var ok = !q || el.textContent.toLowerCase().indexOf(q) >= 0;
+    var txt = (el.textContent + " " + (el.title || "")).toLowerCase();
+    var ok = !q || txt.indexOf(q) >= 0;
+    if (!q && el.dataset.of) ok = !!famOpen[el.dataset.of];
     el.style.display = ok ? "" : "none";
     if (ok && lastHead) lastHead._any = true;
   });
@@ -1577,6 +1704,12 @@ function loadAllAnims(btn) {
     ".chainb{font:inherit;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;cursor:pointer;" +
     "border:1px solid var(--line);background:transparent;color:inherit}" +
     ".chainb.on{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}" +
+    "#anims .arow.fam .caret{width:14px;flex:none;color:var(--dim);cursor:pointer;text-align:center}" +
+    "#anims .arow.fam .ftag{font-size:10px;color:#7ee0c0;white-space:nowrap}" +
+    "#anims .arow.fam{font-weight:700}" +
+    "#anims .arow.famon{outline:1px solid var(--accent);outline-offset:-1px}" +
+    "body.allanims #anims .arow.sub{padding-left:28px!important;font-size:11px;opacity:.9}" +
+    ":root[data-theme=\"light\"] #anims .arow.fam .ftag{color:#1758a8}" +
     "body.allanims #anims{left:14px!important;right:auto!important;transform:none!important;top:118px!important;" +
     "bottom:74px!important;width:250px!important;max-width:none!important;background:var(--panel)!important;" +
     "border:1px solid var(--line)!important;border-radius:10px!important;flex-direction:column!important;" +
@@ -1804,6 +1937,24 @@ function showNow(i) {
     cv.toBlob(cb, "image/png");
   }
   window.__capture = capture;          // 검증용
+  // 검증용: 묶음과 잇는 자리의 자세 차이(도)
+  window.__seam = function (a, b) {
+    var ix = function (n) { for (var i = 0; i < cur.anims.length; i++) if (cur.anims[i].name === n) return i; return -1; };
+    return Math.round(seamDeg(cur, ix(a), ix(b)) * 10) / 10;
+  };
+  window.__bestNext = function (a) {
+    var ia = -1; cur.anims.forEach(function (x, i) { if (x.name === a) ia = i; });
+    return cur.anims.map(function (x, i) { return [x.name, Math.round(seamDeg(cur, ia, i) * 10) / 10]; })
+      .sort(function (p, q) { return p[1] - q[1]; }).slice(0, 6);
+  };
+  window.__fams = function () {
+    if (!cur || !cur._fams) return [];
+    return cur._fams.filter(function (f) { return f.all.length > 1; }).map(function (f) {
+      return { base: f.base, list: f.list.map(function (i) { return cur.anims[i].name; }),
+               loopFrom: f.loopFrom,
+               seams: f.list.map(function (i, k) { var nk = k + 1 < f.list.length ? k + 1 : f.loopFrom; return Math.round(seamDeg(cur, i, f.list[nk]) * 10) / 10; }) };
+    });
+  };
   document.getElementById("bShot").onclick = function () {
     capture(function (b) {
       if (!b) { toast("캡처 실패"); return; }
